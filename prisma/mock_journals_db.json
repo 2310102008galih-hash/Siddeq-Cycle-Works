@@ -1,0 +1,306 @@
+[
+  {
+    "id": 35,
+    "sales_id": 9,
+    "journal_date": "2026-06-05T15:44:24.804Z",
+    "account_code": "101.01",
+    "position": "DEBET",
+    "amount": 240000
+  },
+  {
+    "id": 36,
+    "sales_id": 9,
+    "journal_date": "2026-06-05T15:44:24.804Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 240000
+  },
+  {
+    "id": 37,
+    "sales_id": 9,
+    "journal_date": "2026-06-05T15:44:24.804Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 180000
+  },
+  {
+    "id": 38,
+    "sales_id": 9,
+    "journal_date": "2026-06-05T15:44:24.804Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 180000
+  },
+  {
+    "id": 31,
+    "sales_id": 8,
+    "journal_date": "2026-06-05T13:58:25.297Z",
+    "account_code": "101.02",
+    "position": "DEBET",
+    "amount": 350000
+  },
+  {
+    "id": 32,
+    "sales_id": 8,
+    "journal_date": "2026-06-05T13:58:25.297Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 350000
+  },
+  {
+    "id": 33,
+    "sales_id": 8,
+    "journal_date": "2026-06-05T13:58:25.297Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 240000
+  },
+  {
+    "id": 34,
+    "sales_id": 8,
+    "journal_date": "2026-06-05T13:58:25.297Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 240000
+  },
+  {
+    "id": 1,
+    "sales_id": 1,
+    "journal_date": "2026-05-17T10:00:00.000Z",
+    "account_code": "101.01",
+    "position": "DEBET",
+    "amount": 175000
+  },
+  {
+    "id": 2,
+    "sales_id": 1,
+    "journal_date": "2026-05-17T10:00:00.000Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 175000
+  },
+  {
+    "id": 3,
+    "sales_id": 1,
+    "journal_date": "2026-05-17T10:00:00.000Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 120000
+  },
+  {
+    "id": 4,
+    "sales_id": 1,
+    "journal_date": "2026-05-17T10:00:00.000Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 120000
+  },
+  {
+    "id": 5,
+    "sales_id": 2,
+    "journal_date": "2026-05-18T14:20:00.000Z",
+    "account_code": "103",
+    "position": "DEBET",
+    "amount": 240000
+  },
+  {
+    "id": 6,
+    "sales_id": 2,
+    "journal_date": "2026-05-18T14:20:00.000Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 240000
+  },
+  {
+    "id": 7,
+    "sales_id": 2,
+    "journal_date": "2026-05-18T14:20:00.000Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 180000
+  },
+  {
+    "id": 8,
+    "sales_id": 2,
+    "journal_date": "2026-05-18T14:20:00.000Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 180000
+  },
+  {
+    "id": 9,
+    "sales_id": 3,
+    "journal_date": "2026-05-19T09:15:00.000Z",
+    "account_code": "101.01",
+    "position": "DEBET",
+    "amount": 75000
+  },
+  {
+    "id": 10,
+    "sales_id": 3,
+    "journal_date": "2026-05-19T09:15:00.000Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 75000
+  },
+  {
+    "id": 11,
+    "sales_id": 3,
+    "journal_date": "2026-05-19T09:15:00.000Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 45000
+  },
+  {
+    "id": 12,
+    "sales_id": 3,
+    "journal_date": "2026-05-19T09:15:00.000Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 45000
+  },
+  {
+    "id": 13,
+    "sales_id": 4,
+    "journal_date": "2026-05-20T11:45:00.000Z",
+    "account_code": "101.01",
+    "position": "DEBET",
+    "amount": 490000
+  },
+  {
+    "id": 14,
+    "sales_id": 4,
+    "journal_date": "2026-05-20T11:45:00.000Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 490000
+  },
+  {
+    "id": 15,
+    "sales_id": 4,
+    "journal_date": "2026-05-20T11:45:00.000Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 350000
+  },
+  {
+    "id": 16,
+    "sales_id": 4,
+    "journal_date": "2026-05-20T11:45:00.000Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 350000
+  },
+  {
+    "id": 17,
+    "sales_id": 5,
+    "journal_date": "2026-05-21T16:30:00.000Z",
+    "account_code": "103",
+    "position": "DEBET",
+    "amount": 175000
+  },
+  {
+    "id": 18,
+    "sales_id": 5,
+    "journal_date": "2026-05-21T16:30:00.000Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 175000
+  },
+  {
+    "id": 19,
+    "sales_id": 5,
+    "journal_date": "2026-05-21T16:30:00.000Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 120000
+  },
+  {
+    "id": 20,
+    "sales_id": 5,
+    "journal_date": "2026-05-21T16:30:00.000Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 120000
+  },
+  {
+    "id": 21,
+    "sales_id": 6,
+    "journal_date": "2026-05-22T13:00:00.000Z",
+    "account_code": "101.01",
+    "position": "DEBET",
+    "amount": 150000
+  },
+  {
+    "id": 22,
+    "sales_id": 6,
+    "journal_date": "2026-05-22T13:00:00.000Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 150000
+  },
+  {
+    "id": 23,
+    "sales_id": 6,
+    "journal_date": "2026-05-22T13:00:00.000Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 90000
+  },
+  {
+    "id": 24,
+    "sales_id": 6,
+    "journal_date": "2026-05-22T13:00:00.000Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 90000
+  },
+  {
+    "id": 25,
+    "sales_id": 7,
+    "journal_date": "2026-05-23T08:00:00.000Z",
+    "account_code": "101.01",
+    "position": "DEBET",
+    "amount": 175000
+  },
+  {
+    "id": 26,
+    "sales_id": 7,
+    "journal_date": "2026-05-23T08:00:00.000Z",
+    "account_code": "401",
+    "position": "KREDIT",
+    "amount": 175000
+  },
+  {
+    "id": 27,
+    "sales_id": 7,
+    "journal_date": "2026-05-23T08:00:00.000Z",
+    "account_code": "501",
+    "position": "DEBET",
+    "amount": 120000
+  },
+  {
+    "id": 28,
+    "sales_id": 7,
+    "journal_date": "2026-05-23T08:00:00.000Z",
+    "account_code": "102",
+    "position": "KREDIT",
+    "amount": 120000
+  },
+  {
+    "id": 29,
+    "sales_id": null,
+    "journal_date": "2026-05-22T00:00:00.000Z",
+    "account_code": "502",
+    "position": "DEBET",
+    "amount": 350000
+  },
+  {
+    "id": 30,
+    "sales_id": null,
+    "journal_date": "2026-05-22T00:00:00.000Z",
+    "account_code": "101.01",
+    "position": "KREDIT",
+    "amount": 350000
+  }
+]

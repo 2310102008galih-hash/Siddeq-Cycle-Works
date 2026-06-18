@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@siddeeqcycle.com",
+    "password_hash": "7b8f2693ca20004fb1e8a75c1608b7e2:4f7dd8137113eb848b8c68a0210e17fc9ca19f3759b7aa2ab4437a4b294fc45466791746a9a5bf12196bcb22b1b30f8a52d19123fb3b831483424a7e91f671c2",
+    "role": "MANAJER_OWNER",
+    "is_email_verified": true,
+    "verification_token": null,
+    "token_expires_at": null,
+    "created_at": "2026-05-31T14:42:59.409Z"
+  },
+  {
+    "id": 2,
+    "username": "Galih",
+    "email": "galih@siddeeqcycleworks.com",
+    "password_hash": "bb61c89ddcadda8bf0c13d2737db97e3:6f9aee5d9e2f69605ceec9d46158bb454249fd9ae0c648be039170ca3c85dd2f3f2b0099aef45c58d3683c673dbd09570551326cdfc67be087c29648725fd59f",
+    "role": "MANAJER_OWNER",
+    "is_email_verified": true,
+    "verification_token": null,
+    "token_expires_at": null,
+    "created_at": "2026-05-31T14:47:27.387Z"
+  }
+]

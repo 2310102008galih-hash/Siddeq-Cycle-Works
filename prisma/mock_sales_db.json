@@ -1,0 +1,182 @@
+[
+  {
+    "id": 9,
+    "invoice_number": "INV/20260605/8706",
+    "transaction_date": "2026-06-05T15:44:24.804Z",
+    "total_amount": 240000,
+    "payment_method": "TUNAI",
+    "customer_phone": "082114534671",
+    "digital_signature": null,
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 1780674264804,
+        "sales_id": 9,
+        "product_id": 2,
+        "qty": 1,
+        "price": 240000,
+        "subtotal": 240000
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "invoice_number": "INV/20260605/3592",
+    "transaction_date": "2026-06-05T13:58:25.297Z",
+    "total_amount": 350000,
+    "payment_method": "TRANSFER",
+    "customer_phone": "082114534671",
+    "digital_signature": null,
+    "transfer_reference": "BSI 1234567891 Galih",
+    "details": [
+      {
+        "id": 1780667905297,
+        "sales_id": 8,
+        "product_id": 1,
+        "qty": 2,
+        "price": 175000,
+        "subtotal": 350000
+      }
+    ]
+  },
+  {
+    "id": 1,
+    "invoice_number": "INV/20260517/0001",
+    "transaction_date": "2026-05-17T10:00:00.000Z",
+    "total_amount": 175000,
+    "payment_method": "TUNAI",
+    "customer_phone": "08123456789",
+    "digital_signature": null,
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 101,
+        "sales_id": 1,
+        "product_id": 1,
+        "qty": 1,
+        "price": 175000,
+        "subtotal": 175000
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "invoice_number": "INV/20260518/0001",
+    "transaction_date": "2026-05-18T14:20:00.000Z",
+    "total_amount": 240000,
+    "payment_method": "MURABAHAH",
+    "customer_phone": "08571234567",
+    "digital_signature": "mock_signature_data_url",
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 102,
+        "sales_id": 2,
+        "product_id": 2,
+        "qty": 1,
+        "price": 240000,
+        "subtotal": 240000
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "invoice_number": "INV/20260519/0001",
+    "transaction_date": "2026-05-19T09:15:00.000Z",
+    "total_amount": 75000,
+    "payment_method": "TUNAI",
+    "customer_phone": "08129999888",
+    "digital_signature": null,
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 103,
+        "sales_id": 3,
+        "product_id": 3,
+        "qty": 1,
+        "price": 75000,
+        "subtotal": 75000
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "invoice_number": "INV/20260520/0001",
+    "transaction_date": "2026-05-20T11:45:00.000Z",
+    "total_amount": 490000,
+    "payment_method": "TUNAI",
+    "customer_phone": "08781234567",
+    "digital_signature": null,
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 104,
+        "sales_id": 4,
+        "product_id": 4,
+        "qty": 1,
+        "price": 490000,
+        "subtotal": 490000
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "invoice_number": "INV/20260521/0001",
+    "transaction_date": "2026-05-21T16:30:00.000Z",
+    "total_amount": 175000,
+    "payment_method": "MURABAHAH",
+    "customer_phone": "08111222333",
+    "digital_signature": "mock_signature_data_url",
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 105,
+        "sales_id": 5,
+        "product_id": 1,
+        "qty": 1,
+        "price": 175000,
+        "subtotal": 175000
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "invoice_number": "INV/20260522/0001",
+    "transaction_date": "2026-05-22T13:00:00.000Z",
+    "total_amount": 150000,
+    "payment_method": "TUNAI",
+    "customer_phone": "08122334455",
+    "digital_signature": null,
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 106,
+        "sales_id": 6,
+        "product_id": 3,
+        "qty": 2,
+        "price": 75000,
+        "subtotal": 150000
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "invoice_number": "INV/20260523/0001",
+    "transaction_date": "2026-05-23T08:00:00.000Z",
+    "total_amount": 175000,
+    "payment_method": "TUNAI",
+    "customer_phone": "08133445566",
+    "digital_signature": null,
+    "transfer_reference": null,
+    "details": [
+      {
+        "id": 107,
+        "sales_id": 7,
+        "product_id": 1,
+        "qty": 1,
+        "price": 175000,
+        "subtotal": 175000
+      }
+    ]
+  }
+]

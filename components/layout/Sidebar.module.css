@@ -1,0 +1,49 @@
+.sidebar {
+  width: 260px;
+  background-color: var(--color-primary); /* Deep Forest Green */
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  box-shadow: var(--shadow-lg);
+}
+
+.brand {
+  padding: var(--spacing-6) var(--spacing-4);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-secondary); /* Sharia Gold */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.nav {
+  flex: 1;
+  padding: var(--spacing-6) 0;
+  overflow-y: auto;
+}
+
+.navItem {
+  display: block;
+  padding: var(--spacing-3) var(--spacing-6);
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  border-right: 4px solid transparent;
+}
+
+.navItem:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.active {
+  background-color: rgba(234, 168, 18, 0.12); /* Soft Sharia Gold background */
+  color: var(--color-secondary); /* Sharia Gold text */
+  border-right: 4px solid var(--color-secondary); /* Gold right indicator */
+  font-weight: 600;
+}

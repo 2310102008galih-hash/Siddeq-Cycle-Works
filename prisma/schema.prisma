@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model m_products {
+  id             Int              @id @default(autoincrement())
+  sku            String           @unique
+  name           String
+  purchase_price Decimal
+  sale_price     Decimal
+  stock_qty      Int
+  sales_details  t_sales_detail[]
+}
+
+model t_sales {
+  id                 Int              @id @default(autoincrement())
+  invoice_number     String           @unique
+  transaction_date   DateTime         @default(now())
+  total_amount       Decimal
+  payment_method     PaymentMethod
+  customer_phone     String?
+  digital_signature  String?
+  transfer_reference String?
+  details            t_sales_detail[]
+  jurnals            t_jurnal[]
+}
+
+model t_sales_detail {
+  id         Int        @id @default(autoincrement())
+  sales_id   Int
+  product_id Int
+  qty        Int
+  price      Decimal
+  subtotal   Decimal
+  sale       t_sales    @relation(fields: [sales_id], references: [id])
+  product    m_products @relation(fields: [product_id], references: [id])
+}
+
+model m_chart_of_accounts {
+  account_code String     @id
+  account_name String
+  account_type String
+  jurnals      t_jurnal[]
+}
+
+model t_jurnal {
+  id           Int                 @id @default(autoincrement())
+  sales_id     Int?
+  journal_date DateTime            @default(now())
+  account_code String
+  position     String
+  amount       Decimal
+  sale         t_sales?            @relation(fields: [sales_id], references: [id])
+  account      m_chart_of_accounts @relation(fields: [account_code], references: [account_code])
+}
+model User {
+  id                Int      @id @default(autoincrement())
+  username          String   @unique // Ini berfungsi sebagai ID login
+  email             String   @unique
+  password_hash     String   // Password yang sudah di-hash (Bcrypt/Argon2)
+  role              String   @default("KASIR") // KASIR, ADMIN_AKUNTANSI, MANAJER_OWNER
+  is_email_verified Boolean  @default(false)
+  verification_token String? // Token unik atau kode OTP 6-digit
+  token_expires_at  DateTime?
+  created_at        DateTime @default(now())
+}
+
+enum PaymentMethod {
+  TUNAI
+  MURABAHAH
+  QRIS
+  TRANSFER
+}

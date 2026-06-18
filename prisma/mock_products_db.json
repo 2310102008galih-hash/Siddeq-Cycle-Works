@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "sku": "SC-BAN-001",
+    "name": "Ban Luar Swallow Gravel 700x38c",
+    "purchase_price": 120000,
+    "sale_price": 175000,
+    "stock_qty": 13
+  },
+  {
+    "id": 2,
+    "sku": "SC-RAN-002",
+    "name": "Rantai Shimano HG-54 10 Speed",
+    "purchase_price": 180000,
+    "sale_price": 240000,
+    "stock_qty": 7
+  }
+]
