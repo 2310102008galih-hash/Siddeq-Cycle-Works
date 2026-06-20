@@ -30,14 +30,8 @@ const INITIAL_COA_EXPENSES: COAAccount[] = [
   { code: '505', name: 'Biaya Perlengkapan Bengkel' },
 ];
 
-const INITIAL_JOURNALS: JournalEntry[] = [
-  { id: 'J-003', date: '2026-05-22', ref: 'EXP-0021', account: '502 - Biaya Listrik & Air', position: 'DEBET', amount: 350000, description: 'Pembayaran Listrik Mei', status: 'PENDING_APPROVAL' },
-  { id: 'J-004', date: '2026-05-22', ref: 'EXP-0021', account: '101.01 - Kas Utama (Tunai Bengkel)', position: 'KREDIT', amount: 350000, description: 'Pembayaran Listrik Mei', status: 'PENDING_APPROVAL' },
-  { id: 'J-TRX-1', date: '2026-05-17', ref: 'INV/20260517/0001', account: '101.01 - Kas Utama (Tunai Bengkel)', position: 'DEBET', amount: 175000, description: 'Penjualan Suku Cadang', status: 'COMMITTED' },
-  { id: 'J-TRX-2', date: '2026-05-17', ref: 'INV/20260517/0001', account: '401 - Pendapatan Penjualan', position: 'KREDIT', amount: 175000, description: 'Penjualan Suku Cadang', status: 'COMMITTED' },
-  { id: 'J-TRX-3', date: '2026-05-17', ref: 'INV/20260517/0001', account: '501 - Harga Pokok Penjualan (HPP)', position: 'DEBET', amount: 122500, description: 'HPP Penjualan', status: 'COMMITTED' },
-  { id: 'J-TRX-4', date: '2026-05-17', ref: 'INV/20260517/0001', account: '102 - Persediaan Suku Cadang Gudang', position: 'KREDIT', amount: 122500, description: 'HPP Penjualan', status: 'COMMITTED' },
-];
+// DATA TRANSAKSI DIKOSONGKAN DARI AWAL AGAR BERSIH REKONSILIASI
+const INITIAL_JOURNALS: JournalEntry[] = [];
 
 export default function AccountingPage() {
   const [journals, setJournals] = useState<JournalEntry[]>(INITIAL_JOURNALS);
@@ -89,7 +83,7 @@ export default function AccountingPage() {
     const targetCoaObj = coaExpenses.find(c => c.code === selectedCoa);
     const coaName = targetCoaObj ? targetCoaObj.name : "Biaya Operasional";
     const uniqueRef = `EXP-${Math.floor(1000 + Math.random() * 9000)}`;
-    const sourceAccountName = paymentSource === '101.01' ? '101.01 - Kas Utama (Tunai Bengkel)' : '101.02 - Bank Syariah (Rekening Utama)';
+    const sourceAccountName = paymentSource === '101.01' ? '101.01 - Kas Utama (Tunai)' : '101.02 - Bank Syariah (Transfer)';
 
     const debetEntry: JournalEntry = { id: `J-EXP-${Date.now()}-D`, date: expenseDate, ref: uniqueRef, account: `${selectedCoa} - ${coaName}`, position: 'DEBET', amount: amountNum, description: expenseDesc, status: 'COMMITTED' };
     const kreditEntry: JournalEntry = { id: `J-EXP-${Date.now()}-K`, date: expenseDate, ref: uniqueRef, account: sourceAccountName, position: 'KREDIT', amount: amountNum, description: expenseDesc, status: 'COMMITTED' };
@@ -117,59 +111,29 @@ export default function AccountingPage() {
 
   const groupedList = Object.values(groupedJournals);
 
-  // ========================================================
-  // JEMBATAN OTOMATIS: PIN PINTAR DETEKSI METODE KASIR
-  // ========================================================
-  const isRevenue = (account: string) => account.includes('401') || account.toLowerCase().includes('pendapatan');
-  const isHPP = (account: string) => account.includes('501') || account.toLowerCase().includes('harga pokok');
-  const isExpense = (account: string) => account.startsWith('5') && !isHPP(account);
-
+  // Perhitungan Nilai Laba Rugi Berdasarkan Struktur COA Baku Terintegrasi
   const totalPendapatan = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && isRevenue(j.account))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.includes('401'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const totalHPP = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && isHPP(j.account))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.includes('501'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaKotor = totalPendapatan - totalHPP;
 
   const totalBiayaOperasional = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && isExpense(j.account))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && j.account.startsWith('5') && !j.account.includes('501'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaBersihSebelumZakat = labaKotor - totalBiayaOperasional;
   const alokasiZakat = labaBersihSebelumZakat > 0 ? labaBersihSebelumZakat * 0.025 : 0;
   const labaBersihSetelahZakat = labaBersihSebelumZakat - alokasiZakat;
 
-  // Logika Saldo Neraca dengan Pemetaan Kata Kunci Dinamis dari POS Kasir
+  // Kalkulasi Saldo Neraca (Sangat Bersih & Presisi Mengikuti Kode COA Depan)
   const getAccountBalance = (accountCode: string, initialBalance = 0) => {
     return journals
-      .filter(j => {
-        const isAttached = j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL';
-        if (!isAttached) return false;
-
-        const nameLower = j.account.toLowerCase();
-        
-        // Pemetaan Akun Kas Utama 101.01
-        if (accountCode === '101.01') {
-          return j.account.startsWith('101.01') || nameLower.includes('kas utama') || nameLower.includes('tunai (cash');
-        }
-        // Pemetaan Akun Bank Syariah 101.02
-        if (accountCode === '101.02') {
-          return j.account.startsWith('101.02') || nameLower.includes('bank syariah') || nameLower.includes('transfer bank') || nameLower.includes('qris');
-        }
-        // Pemetaan Akun Persediaan Suku Cadang 102
-        if (accountCode === '102') {
-          return j.account.startsWith('102') || nameLower.includes('persediaan');
-        }
-        // Pemetaan Akun Piutang Murabahah 103
-        if (accountCode === '103') {
-          return j.account.startsWith('103') || nameLower.includes('piutang') || nameLower.includes('murabahah');
-        }
-
-        return j.account.startsWith(accountCode);
-      })
+      .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith(accountCode))
       .reduce((balance, j) => {
         if (j.position === 'DEBET') return balance + j.amount;
         return balance - j.amount;
@@ -198,7 +162,7 @@ export default function AccountingPage() {
           <Card>
             <div style={{ padding: 'var(--spacing-4) var(--spacing-4) 0 var(--spacing-4)' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Buku Jurnal Umum Terpadu</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Log transaksi otomatis terjembatani dari modul POS Kasir Utama</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Log transaksi otomatis terintegrasi penuh dari modul POS Kasir Utama</p>
             </div>
             <CardBody style={{ padding: 0 }}>
               <div style={{ overflowX: 'auto' }}>
@@ -214,37 +178,43 @@ export default function AccountingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groupedList.map((group) => (
-                      <React.Fragment key={group.ref}>
-                        <tr onClick={() => setExpandedGroupRef(expandedGroupRef === group.ref ? null : group.ref)} style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                          <td style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--color-primary)', fontWeight: 'bold' }}>{expandedGroupRef === group.ref ? '▼' : '▶'}</td>
-                          <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-primary)' }}>{group.ref}</td>
-                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{group.date}</td>
-                          <td style={{ padding: '12px 16px', fontWeight: 500 }}>{group.description}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700 }}>Rp {group.totalAmount.toLocaleString('id-ID')}</td>
-                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                            <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, backgroundColor: group.status === 'COMMITTED' ? 'var(--color-committed-bg)' : 'rgba(234, 168, 18, 0.1)', color: group.status === 'COMMITTED' ? 'var(--color-committed-text)' : '#D97706' }}>{group.status}</span>
-                          </td>
-                        </tr>
-                        {expandedGroupRef === group.ref && (
-                          <tr>
-                            <td colSpan={6} style={{ padding: '12px 24px', backgroundColor: '#F8F9FA' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderLeft: '3px solid var(--color-primary)', paddingLeft: '16px' }}>
-                                {group.entries.map((entry, i) => (
-                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', backgroundColor: '#FFFFFF', padding: '8px 12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
-                                    <div>
-                                      <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: entry.position === 'DEBET' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: entry.position === 'DEBET' ? '#3B82F6' : '#D97706', marginRight: '8px' }}>{entry.position}</span>
-                                      <span style={{ fontWeight: 600, paddingLeft: entry.position === 'KREDIT' ? '20px' : '0' }}>{entry.account}</span>
-                                    </div>
-                                    <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>Rp {entry.amount.toLocaleString('id-ID')}</span>
-                                  </div>
-                                ))}
-                              </div>
+                    {groupedList.length > 0 ? (
+                      groupedList.map((group) => (
+                        <React.Fragment key={group.ref}>
+                          <tr onClick={() => setExpandedGroupRef(expandedGroupRef === group.ref ? null : group.ref)} style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}>
+                            <td style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--color-primary)', fontWeight: 'bold' }}>{expandedGroupRef === group.ref ? '▼' : '▶'}</td>
+                            <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-primary)' }}>{group.ref}</td>
+                            <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{group.date}</td>
+                            <td style={{ padding: '12px 16px', fontWeight: 500 }}>{group.description}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700 }}>Rp {group.totalAmount.toLocaleString('id-ID')}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                              <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, backgroundColor: group.status === 'COMMITTED' ? 'var(--color-committed-bg)' : 'rgba(234, 168, 18, 0.1)', color: group.status === 'COMMITTED' ? 'var(--color-committed-text)' : '#D97706' }}>{group.status}</span>
                             </td>
                           </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
+                          {expandedGroupRef === group.ref && (
+                            <tr>
+                              <td colSpan={6} style={{ padding: '12px 24px', backgroundColor: '#F8F9FA' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderLeft: '3px solid var(--color-primary)', paddingLeft: '16px' }}>
+                                  {group.entries.map((entry, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', backgroundColor: '#FFFFFF', padding: '8px 12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                                      <div>
+                                        <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: entry.position === 'DEBET' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: entry.position === 'DEBET' ? '#3B82F6' : '#D97706', marginRight: '8px' }}>{entry.position}</span>
+                                        <span style={{ fontWeight: 600, paddingLeft: entry.position === 'KREDIT' ? '20px' : '0' }}>{entry.account}</span>
+                                      </div>
+                                      <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>Rp {entry.amount.toLocaleString('id-ID')}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Belum ada data jurnal berjalan. Silakan lakukan transaksi di POS Kasir.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -301,19 +271,19 @@ export default function AccountingPage() {
                   <span style={{ fontWeight: 700, color: 'var(--color-primary)', display: 'block', fontSize: '0.75rem' }}>ASET / AKTIVA</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>101.01 - Kas Utama (Tunai Bengkel)</span>
+                      <span>101.01 - Kas Utama (Tunai)</span>
                       <span>Rp {saldoKas.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>101.02 - Bank Syariah (Rekening Utama)</span>
+                      <span>101.02 - Bank Syariah (Transfer)</span>
                       <span>Rp {saldoBank.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>102 - Persediaan Suku Cadang Gudang</span>
+                      <span>102 - Persediaan Suku Cadang</span>
                       <span>Rp {saldoPersediaan.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>103 - Piutang Pembayaran Murabahah</span>
+                      <span>103 - Piutang Murabahah</span>
                       <span>Rp {saldoPiutang.toLocaleString('id-ID')}</span>
                     </div>
                   </div>
@@ -354,7 +324,7 @@ export default function AccountingPage() {
             </Card>
           </div>
 
-          {/* INPUT BIAYA */}
+          {/* INPUT BIAYA OPERASIONAL */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--spacing-6)' }}>
             <Card style={{ borderLeft: '4px solid #D97706' }}>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -371,8 +341,8 @@ export default function AccountingPage() {
                       {coaExpenses.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
                     </select>
                     <select value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <option value="101.01">101.01 - Kas Utama (Tunai Bengkel)</option>
-                      <option value="101.02">101.02 - Bank Syariah (Rekening Utama)</option>
+                      <option value="101.01">101.01 - Kas Utama (Tunai)</option>
+                      <option value="101.02">101.02 - Bank Syariah (Transfer)</option>
                     </select>
                     <Input label="Tanggal" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required />
                   </div>
