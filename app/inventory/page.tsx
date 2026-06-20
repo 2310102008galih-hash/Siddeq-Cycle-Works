@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { TopHeader } from '../../components/layout/TopHeader';
 import { Card, CardHeader, CardBody, CardFooter } from '../../components/ui/Card';
@@ -27,15 +27,22 @@ const INITIAL_PRODUCTS: Product[] = [
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
 
-  // State pencarian gudang baru
+  // State pencarian tabel kiri
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Form states (kanan)
   const [sku, setSku] = useState('');
   const [name, setName] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
   const [sellPrice, setSellPrice] = useState('');
   const [stockQty, setStockQty] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Auto-complete suggestions states
+  const [suggestions, setFilteredSuggestions] = useState<Product[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionRef = useRef<HTMLDivElement | null>(null);
 
   // Load from database with localStorage fallback
   useEffect(() => {
@@ -99,12 +106,58 @@ export default function InventoryPage() {
     fetchProducts();
   }, []);
 
-  // Handler Fungsi Tambah Stok untuk Suku Cadang yang Sudah Ada Riwayatnya
-  const handleUpdateExistingStock = async (productId: number, currentStock: number, productName: string) => {
-    const inputQty = prompt(`Masukkan jumlah unit baru yang ingin ditambahkan untuk:\n"${productName}"`);
+  // Menutup auto-complete dropdown jika klik di luar area form
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Trigger pencarian saat mengetik nama produk di form kanan
+  const handleNameChange = (val: string) => {
+    setName(val);
+    if (selectedProductId) {
+      // Jika user mengubah nama setelah memilih produk lama, reset mode ke produk baru
+      setSelectedProductId(null);
+    }
+
+    if (val.trim() === '') {
+      setFilteredSuggestions([]);
+      setShowSuggestions(false);
+    } else {
+      const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(val.toLowerCase()) || 
+        p.sku.toLowerCase().includes(val.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+      setShowSuggestions(true);
+    }
+  };
+
+  // Fungsi saat user memilih salah satu produk lama dari dropdown saran pencarian
+  const handleSelectSuggestion = (prod: Product) => {
+    setSelectedProductId(prod.id);
+    setName(prod.name);
+    setSku(prod.sku);
+    setBuyPrice(prod.buyPrice.toString());
+    setSellPrice(prod.sellPrice.toString());
+    setStockQty(''); // Dikosongkan agar user fokus mengisi kuantitas tambahan saja
+    setShowSuggestions(false);
+  };
+
+  // Fungsi standalone tombol "+ Stok" di tabel kiri
+  const handleUpdateExistingStock = async (productId: number, currentStock: number, productName: string, qtyInput?: number) => {
+    let qtyToAdd = qtyInput;
     
-    if (inputQty === null) return; // Jika klik batal
-    const qtyToAdd = parseInt(inputQty);
+    if (!qtyToAdd) {
+      const inputQty = prompt(`Masukkan jumlah unit baru yang ingin ditambahkan untuk:\n"${productName}"`);
+      if (inputQty === null) return;
+      qtyToAdd = parseInt(inputQty);
+    }
     
     if (isNaN(qtyToAdd) || qtyToAdd <= 0) {
       alert("Harap masukkan angka jumlah penambahan unit yang valid dan di atas 0!");
@@ -116,7 +169,6 @@ export default function InventoryPage() {
     try {
       const supabase = getSupabaseClient();
       if (supabase) {
-        // Update langsung kolom stock_qty di tabel products Supabase
         const { error } = await supabase
           .from('products')
           .update({ stock_qty: calculatedNewStock })
@@ -125,7 +177,6 @@ export default function InventoryPage() {
         if (error) throw new Error(error.message);
       }
 
-      // Perbarui local state agar layar langsung berubah tanpa reload halaman
       const updatedProducts = products.map((prod) => {
         if (prod.id === productId) {
           return { ...prod, stockQty: calculatedNewStock };
@@ -135,12 +186,10 @@ export default function InventoryPage() {
 
       setProducts(updatedProducts);
       localStorage.setItem('siddeeq_products', JSON.stringify(updatedProducts));
-      alert(`Alhamdulillah, Berhasil menambahkan +${qtyToAdd} unit ke stok gudang!`);
+      return true;
 
     } catch (err: any) {
       console.warn("Gagal memperbarui database cloud, beralih ke local cache:", err.message);
-      
-      // Jalankan skenario local cache jika internet/database terganggu
       const updatedProducts = products.map((prod) => {
         if (prod.id === productId) {
           return { ...prod, stockQty: calculatedNewStock };
@@ -149,16 +198,32 @@ export default function InventoryPage() {
       });
       setProducts(updatedProducts);
       localStorage.setItem('siddeeq_products', JSON.stringify(updatedProducts));
-      alert(`[Mode Offline] Stok "${productName}" diperbarui di cache lokal menjadi ${calculatedNewStock} unit.`);
+      return true;
     }
   };
 
-  const handleAddProduct = async (e: React.FormEvent) => {
+  // Handler utama saat tombol form kanan diklik (Simpan Suku Cadang)
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sku || !name || !buyPrice || !sellPrice || !stockQty) return;
 
     setIsSubmitting(true);
 
+    // MODE A: Update Stok Barang Lama jika ID Terdeteksi
+    if (selectedProductId !== null) {
+      const targetProd = products.find(p => p.id === selectedProductId);
+      if (targetProd) {
+        const success = await handleUpdateExistingStock(selectedProductId, targetProd.stockQty, targetProd.name, parseInt(stockQty));
+        if (success) {
+          alert(`Alhamdulillah, Berhasil menambahkan +${stockQty} unit ke stok barang lama "${targetProd.name}"!`);
+          handleResetForm();
+        }
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    // MODE B: Tambah Suku Cadang Baru yang Belum Terdaftar
     try {
       const supabase = getSupabaseClient();
       if (supabase) {
@@ -188,54 +253,11 @@ export default function InventoryPage() {
         const updated = [...products, mappedProd];
         setProducts(updated);
         localStorage.setItem('siddeeq_products', JSON.stringify(updated));
-        
-        setSku('');
-        setName('');
-        setBuyPrice('');
-        setSellPrice('');
-        setStockQty('');
+        alert(`Alhamdulillah, Suku cadang baru "${name}" berhasil didaftarkan ke gudang!`);
+        handleResetForm();
         setIsSubmitting(false);
         return;
       }
-
-      // Fallback
-      const response = await fetch('/api/v1/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sku,
-          name,
-          buyPrice,
-          sellPrice,
-          stockQty
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.product) {
-          const newProd: Product = {
-            id: result.product.id,
-            sku: result.product.sku,
-            name: result.product.name,
-            buyPrice: result.product.purchase_price,
-            sellPrice: result.product.sale_price,
-            stockQty: result.product.stock_qty
-          };
-          const updated = [...products, newProd];
-          setProducts(updated);
-          localStorage.setItem('siddeeq_products', JSON.stringify(updated));
-          
-          setSku('');
-          setName('');
-          setBuyPrice('');
-          setSellPrice('');
-          setStockQty('');
-          setIsSubmitting(false);
-          return;
-        }
-      }
-      throw new Error("Gagal menyimpan produk ke backend.");
     } catch (error: any) {
       console.error(error);
       const saved = localStorage.getItem('siddeeq_products');
@@ -253,21 +275,27 @@ export default function InventoryPage() {
       const updatedProducts = [...currentProducts, newProduct];
       setProducts(updatedProducts);
       localStorage.setItem('siddeeq_products', JSON.stringify(updatedProducts));
-
-      setSku('');
-      setName('');
-      setBuyPrice('');
-      setSellPrice('');
-      setStockQty('');
+      alert(`[Mode Offline] Suku cadang baru "${name}" disimpan di cache lokal.`);
+      handleResetForm();
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Logika Penyaringan Hasil Pencarian Suku Cadang Gudang
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+  const handleResetForm = () => {
+    setSku('');
+    setName('');
+    setBuyPrice('');
+    setSellPrice('');
+    setStockQty('');
+    setSelectedProductId(null);
+    setFilteredSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const filteredProductsTable = products.filter((p) => {
+    return p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+           p.sku.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -288,7 +316,6 @@ export default function InventoryPage() {
                     Informasi stok aktif, harga beli (HPP), dan harga jual
                   </p>
 
-                  {/* KOTAK INPUT BOX PENCARIAN GUDANG */}
                   <div style={{ maxWidth: '380px', marginBottom: 'var(--spacing-2)' }}>
                     <input 
                       type="text"
@@ -302,8 +329,7 @@ export default function InventoryPage() {
                         border: '1px solid var(--border-color)',
                         borderRadius: 'var(--radius-md)',
                         backgroundColor: '#FFFFFF',
-                        outline: 'none',
-                        transition: 'border-color var(--transition-fast)'
+                        outline: 'none'
                       }}
                     />
                   </div>
@@ -323,8 +349,8 @@ export default function InventoryPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredProducts.length > 0 ? (
-                          filteredProducts.map((product) => (
+                        {filteredProductsTable.length > 0 ? (
+                          filteredProductsTable.map((product) => (
                             <tr key={product.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                               <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-secondary)' }}>
                                 {product.sku}
@@ -350,21 +376,13 @@ export default function InventoryPage() {
                                   {product.stockQty} Unit
                                 </span>
                               </td>
-                              {/* TOMBOL AKSI CEPAT RE-STOCK BARANG LAMA */}
                               <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'center' }}>
                                 <button
                                   type="button"
                                   onClick={() => handleUpdateExistingStock(product.id, product.stockQty, product.name)}
                                   style={{
-                                    padding: '4px 8px',
-                                    fontSize: '0.75rem',
-                                    backgroundColor: 'var(--color-primary)',
-                                    color: '#FFFFFF',
-                                    border: 'none',
-                                    borderRadius: 'var(--radius-sm)',
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    boxShadow: 'var(--shadow-sm)'
+                                    padding: '4px 8px', fontSize: '0.75rem', backgroundColor: 'var(--color-primary)',
+                                    color: '#FFFFFF', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600
                                   }}
                                 >
                                   + Stok
@@ -375,7 +393,7 @@ export default function InventoryPage() {
                         ) : (
                           <tr>
                             <td colSpan={6} style={{ padding: 'var(--spacing-6)', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                              Suku cadang dengan kata kunci "{searchTerm}" tidak ditemukan di gudang.
+                              Suku cadang tidak ditemukan.
                             </td>
                           </tr>
                         )}
@@ -386,26 +404,73 @@ export default function InventoryPage() {
               </Card>
             </div>
 
-            {/* Right Column: Add Product Form */}
-            <div>
-              <Card>
-                <CardHeader title="Tambah Produk Baru" description="Registrasikan SKU baru ke gudang" />
-                <form onSubmit={handleAddProduct}>
-                  <CardBody style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
+            {/* Right Column: SMART MULTIFUNCTIONAL ADD PRODUCT FORM */}
+            <div ref={suggestionRef} style={{ position: 'relative' }}>
+              <Card style={{ borderTop: selectedProductId !== null ? '5px solid var(--color-secondary)' : '1px solid var(--border-color)' }}>
+                <CardHeader 
+                  title={selectedProductId !== null ? "Tambah Stok Barang Lama" : "Tambah Produk Baru"} 
+                  description={selectedProductId !== null ? "Menambahkan kuantitas logistik suku cadang terdaftar" : "Registrasikan SKU baru ke gudang"} 
+                />
+                
+                {/* Indikator badge pintar jika mode barang terdaftar aktif */}
+                {selectedProductId !== null && (
+                  <div style={{ margin: '0 var(--spacing-4)', padding: '6px 12px', backgroundColor: 'rgba(234, 168, 18, 0.1)', color: 'var(--color-secondary-hover)', fontSize: '0.75rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                    📢 Mode Sinkronisasi Suku Cadang Terdaftar Aktif
+                  </div>
+                )}
+
+                <form onSubmit={handleFormSubmit}>
+                  <CardBody style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)', position: 'relative' }}>
+                    
+                    {/* INPUT NAMA: INTEGRATED WITH AUTO-COMPLETE SEARCH SUGGESTIONS */}
+                    <div style={{ position: 'relative' }}>
+                      <Input 
+                        label="Nama Suku Cadang" 
+                        placeholder="Ketik untuk cari barang lama / masukkan nama barang baru..." 
+                        value={name}
+                        onChange={(e) => handleNameChange(e.target.value)}
+                        required
+                        autoComplete="off"
+                      />
+                      
+                      {/* Dropdown Floating List Hasil Rekomendasi Barang Gudang */}
+                      {showSuggestions && suggestions.length > 0 && (
+                        <div style={{
+                          position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#FFFFFF',
+                          border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
+                          maxHeight: '180px', overflowY: 'auto', zIndex: 999, marginTop: '2px'
+                        }}>
+                          <div style={{ padding: '5px 10px', fontSize: '0.65rem', color: 'var(--text-secondary)', backgroundColor: '#F8F9FA', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)' }}>
+                            PRODUK LAMA TERDETEKSI (KLIK UNTUK TAMBAH STOK):
+                          </div>
+                          {suggestions.map((prod) => (
+                            <div
+                              key={prod.id}
+                              onClick={() => handleSelectSuggestion(prod)}
+                              style={{
+                                padding: '8px 12px', fontSize: '0.8rem', cursor: 'pointer', display: 'flex',
+                                justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', transition: 'background 0.1s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F0Fdf4'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
+                            >
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{prod.name}</span>
+                              <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 'bold' }}>{prod.sku} (Sisa: {prod.stockQty})</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <Input 
                       label="Kode SKU" 
                       placeholder="Contoh: SC-BAN-005" 
                       value={sku}
                       onChange={(e) => setSku(e.target.value)}
                       required
+                      disabled={selectedProductId !== null} // SKU dikunci jika barang lama biar tidak duplikat cacat
                     />
-                    <Input 
-                      label="Nama Suku Cadang" 
-                      placeholder="Contoh: Ban Dalam Swallow 26" 
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-2)' }}>
                       <Input 
                         label="HPP (Beli)" 
@@ -414,6 +479,7 @@ export default function InventoryPage() {
                         value={buyPrice}
                         onChange={(e) => setBuyPrice(e.target.value)}
                         required
+                        disabled={selectedProductId !== null} // Harga beli terkunci otomatis
                       />
                       <Input 
                         label="Harga Jual" 
@@ -422,49 +488,42 @@ export default function InventoryPage() {
                         value={sellPrice}
                         onChange={(e) => setSellPrice(e.target.value)}
                         required
+                        disabled={selectedProductId !== null} // Harga jual terkunci otomatis
                       />
                     </div>
+
                     <Input 
-                      label="Stok Awal" 
+                      label={selectedProductId !== null ? "Jumlah Tambah Stok" : "Stok Awal"} 
                       type="number" 
-                      placeholder="Jumlah Unit"
+                      placeholder={selectedProductId !== null ? "Masukkan nominal tambah unit..." : "Jumlah Unit"}
                       value={stockQty}
                       onChange={(e) => setStockQty(e.target.value)}
                       required
                     />
                   </CardBody>
+                  
                   <CardFooter style={{ display: 'flex', gap: 'var(--spacing-2)', justifyContent: 'flex-end' }}>
                     <Button 
                       variant="outline" 
                       type="button" 
                       disabled={isSubmitting}
-                      onClick={() => {
-                        setSku('');
-                        setName('');
-                        setBuyPrice('');
-                        setSellPrice('');
-                        setStockQty('');
-                      }}
+                      onClick={handleResetForm}
                     >
-                      Batal
+                      {selectedProductId !== null ? 'Reset Mode' : 'Batal'}
                     </Button>
                     <Button 
                       type="submit"
                       disabled={isSubmitting}
+                      style={{
+                        backgroundColor: selectedProductId !== null ? 'var(--color-secondary)' : 'var(--color-primary)'
+                      }}
                     >
                       {isSubmitting ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
-                          <span className="spinner" style={{
-                            width: '14px',
-                            height: '14px',
-                            border: '2px solid rgba(255, 255, 255, 0.3)',
-                            borderTopColor: '#FFFFFF',
-                            borderRadius: '50%',
-                            animation: 'spin 0.6s linear infinite'
-                          }}></span>
+                          <span className="spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(255, 255, 255, 0.3)', borderTopColor: '#FFFFFF', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }}></span>
                           Menyimpan...
                         </div>
-                      ) : 'Simpan Suku Cadang'}
+                      ) : selectedProductId !== null ? '✓ Tambah Stok' : 'Simpan Suku Cadang'}
                     </Button>
                   </CardFooter>
                 </form>
@@ -474,7 +533,6 @@ export default function InventoryPage() {
           </div>
         </div>
         
-        {/* Global spinner animation keyframes definition */}
         <style jsx global>{`
           @keyframes spin {
             to { transform: rotate(360deg); }
