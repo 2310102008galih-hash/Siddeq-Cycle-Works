@@ -30,7 +30,6 @@ const INITIAL_COA_EXPENSES: COAAccount[] = [
   { code: '505', name: 'Biaya Perlengkapan Bengkel' },
 ];
 
-// DATA TRANSAKSI DIKOSONGKAN DARI AWAL AGAR BERSIH REKONSILIASI
 const INITIAL_JOURNALS: JournalEntry[] = [];
 
 export default function AccountingPage() {
@@ -39,7 +38,7 @@ export default function AccountingPage() {
   const [expandedGroupRef, setExpandedGroupRef] = useState<string | null>(null);
 
   const [selectedCoa, setSelectedCoa] = useState('');
-  const [paymentSource, setPaymentSource] = useState('101.01'); 
+  const [paymentSource, setPaymentSource] = useState('101.01 - Kas Utama (Tunai)'); 
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDesc, setExpenseDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState('2026-06-20');
@@ -83,10 +82,9 @@ export default function AccountingPage() {
     const targetCoaObj = coaExpenses.find(c => c.code === selectedCoa);
     const coaName = targetCoaObj ? targetCoaObj.name : "Biaya Operasional";
     const uniqueRef = `EXP-${Math.floor(1000 + Math.random() * 9000)}`;
-    const sourceAccountName = paymentSource === '101.01' ? '101.01 - Kas Utama (Tunai)' : '101.02 - Bank Syariah (Transfer)';
 
     const debetEntry: JournalEntry = { id: `J-EXP-${Date.now()}-D`, date: expenseDate, ref: uniqueRef, account: `${selectedCoa} - ${coaName}`, position: 'DEBET', amount: amountNum, description: expenseDesc, status: 'COMMITTED' };
-    const kreditEntry: JournalEntry = { id: `J-EXP-${Date.now()}-K`, date: expenseDate, ref: uniqueRef, account: sourceAccountName, position: 'KREDIT', amount: amountNum, description: expenseDesc, status: 'COMMITTED' };
+    const kreditEntry: JournalEntry = { id: `J-EXP-${Date.now()}-K`, date: expenseDate, ref: uniqueRef, account: paymentSource, position: 'KREDIT', amount: amountNum, description: expenseDesc, status: 'COMMITTED' };
 
     const updatedJournals = [debetEntry, kreditEntry, ...journals];
     setJournals(updatedJournals);
@@ -96,7 +94,6 @@ export default function AccountingPage() {
     alert(`Pengeluaran ${uniqueRef} berhasil dibukukan!`);
   };
 
-  // Logika Pengelompokan Baris Jurnal
   const groupedJournals = journals.reduce((groups: Record<string, { ref: string; date: string; description: string; totalAmount: number; status: string; entries: JournalEntry[] }>, item) => {
     const groupKey = item.ref || item.id;
     if (!groups[groupKey]) {
@@ -111,26 +108,26 @@ export default function AccountingPage() {
 
   const groupedList = Object.values(groupedJournals);
 
-  // Perhitungan Nilai Laba Rugi Berdasarkan Struktur COA Baku Terintegrasi
+  // Perhitungan Laba Rugi Berdasarkan COA Bersih POS Kasir
   const totalPendapatan = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.includes('401'))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith('401'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const totalHPP = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.includes('501'))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith('501'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaKotor = totalPendapatan - totalHPP;
 
   const totalBiayaOperasional = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && j.account.startsWith('5') && !j.account.includes('501'))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && j.account.startsWith('5') && !j.account.startsWith('501'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaBersihSebelumZakat = labaKotor - totalBiayaOperasional;
   const alokasiZakat = labaBersihSebelumZakat > 0 ? labaBersihSebelumZakat * 0.025 : 0;
   const labaBersihSetelahZakat = labaBersihSebelumZakat - alokasiZakat;
 
-  // Kalkulasi Saldo Neraca (Sangat Bersih & Presisi Mengikuti Kode COA Depan)
+  // Perhitungan Saldo Neraca Mutlak Berdasarkan COA Depan
   const getAccountBalance = (accountCode: string, initialBalance = 0) => {
     return journals
       .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith(accountCode))
@@ -158,7 +155,7 @@ export default function AccountingPage() {
         
         <div style={{ padding: 'var(--spacing-6)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
           
-          {/* TABEL JURNAL */}
+          {/* TABEL BUKU JURNAL */}
           <Card>
             <div style={{ padding: 'var(--spacing-4) var(--spacing-4) 0 var(--spacing-4)' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Buku Jurnal Umum Terpadu</h3>
@@ -221,7 +218,7 @@ export default function AccountingPage() {
             </CardBody>
           </Card>
 
-          {/* DUA BLOK LAPORAN UTAMA */}
+          {/* SIMULASI LABA RUGI & NERACA LAJUR */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
@@ -341,8 +338,8 @@ export default function AccountingPage() {
                       {coaExpenses.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
                     </select>
                     <select value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <option value="101.01">101.01 - Kas Utama (Tunai)</option>
-                      <option value="101.02">101.02 - Bank Syariah (Transfer)</option>
+                      <option value="101.01 - Kas Utama (Tunai)">101.01 - Kas Utama (Tunai)</option>
+                      <option value="101.02 - Bank Syariah (Transfer)">101.02 - Bank Syariah (Transfer)</option>
                     </select>
                     <Input label="Tanggal" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required />
                   </div>
