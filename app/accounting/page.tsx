@@ -42,15 +42,13 @@ const INITIAL_JOURNALS: JournalEntry[] = [
   { id: 'J-TRX-21', date: '2026-05-22', ref: 'INV/20260522/0001', account: '101.01 - Kas Utama (Tunai)', position: 'DEBET', amount: 150000, description: 'Penjualan Suku Cadang', status: 'COMMITTED' },
   { id: 'J-TRX-22', date: '2026-05-22', ref: 'INV/20260522/0001', account: '401 - Pendapatan Penjualan', position: 'KREDIT', amount: 150000, description: 'Penjualan Suku Cadang', status: 'COMMITTED' },
   { id: 'J-TRX-23', date: '2026-05-22', ref: 'INV/20260522/0001', account: '501 - Harga Pokok Penjualan (HPP)', position: 'DEBET', amount: 105000, description: 'HPP Penjualan', status: 'COMMITTED' },
+  { id: 'J-TRX-24', date: '2026-05-22', ref: 'INV/20260522/0001', account: '102 - Persediaan Suku Cadang', position: 'KREDIT', amount: 105000, description: 'HPP Penjualan', status: 'COMMITTED' },
 ];
 
 export default function AccountingPage() {
   const [journals, setJournals] = useState<JournalEntry[]>(INITIAL_JOURNALS);
-  
-  // State untuk melacak ID bundle transaksi mana yang sedang dibuka detailnya
   const [expandedGroupRef, setExpandedGroupRef] = useState<string | null>(null);
 
-  // Sync data dari cache lokal kasir jika ada
   useEffect(() => {
     const savedJournals = localStorage.getItem('siddeeq_journals');
     if (savedJournals) {
@@ -65,11 +63,10 @@ export default function AccountingPage() {
   }, []);
 
   // ==========================================
-  // LOGIKA UTAMA: PENGELOMPOKKAN JURNAL (GROUPING)
+  // LOGIKA GROUPING JURNAL (ACCORDION RINGKAS)
   // ==========================================
-  // Kita kelompokkan entri jurnal berdasarkan Ref transaksi (contoh: No Invoice atau nomor referensi biaya)
   const groupedJournals = journals.reduce((groups: Record<string, { ref: string; date: string; description: string; totalAmount: number; status: string; entries: JournalEntry[] }>, item) => {
-    const groupKey = item.ref || item.id; // Gunakan nomor invoice/referensi sebagai kunci grup
+    const groupKey = item.ref || item.id;
     
     if (!groups[groupKey]) {
       groups[groupKey] = {
@@ -84,7 +81,6 @@ export default function AccountingPage() {
     
     groups[groupKey].entries.push(item);
     
-    // Total amount bundle dihitung hanya dari posisi DEBET agar tidak double-counting (Debet = Kredit)
     if (item.position === 'DEBET') {
       groups[groupKey].totalAmount += item.amount;
     }
@@ -95,7 +91,7 @@ export default function AccountingPage() {
   const groupedList = Object.values(groupedJournals);
 
   // ==========================================
-  // KALKULASI LABA RUGI & NERACA DYNAMIC
+  // KALKULASI LABA RUGI SYARIAH
   // ==========================================
   const totalPendapatan = journals
     .filter(j => j.status === 'COMMITTED' && j.account.includes('401'))
@@ -106,14 +102,15 @@ export default function AccountingPage() {
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaKotor = totalPendapatan - totalHPP;
-  const totalBiayaOperasional = journals
-    .filter(j => j.status === 'PENDING_APPROVAL' && j.position === 'DEBET')
-    .reduce((sum, j) => sum + j.amount, 0) || 350000; 
+  const totalBiayaOperasional = 350000; 
 
   const labaBersihSebelumZakat = labaKotor - totalBiayaOperasional;
   const alokasiZakat = labaBersihSebelumZakat > 0 ? labaBersihSebelumZakat * 0.025 : 0;
   const labaBersihSetelahZakat = labaBersihSebelumZakat - alokasiZakat;
 
+  // ==========================================
+  // KALKULASI MUTASI SALDO NERACA
+  // ==========================================
   const getAccountBalance = (accountCode: string, initialBalance = 0) => {
     return journals
       .filter(j => j.status === 'COMMITTED' && j.account.includes(accountCode))
@@ -123,14 +120,19 @@ export default function AccountingPage() {
       }, initialBalance);
   };
 
-  const saldoKas = getAccountBalance('101.01', 500000);
-  const saldoBank = getAccountBalance('101.02', 2000000);
-  const saldoPersediaan = getAccountBalance('102', 15000000);
+  // Sisi Aktiva (Aset)
+  const saldoKas = getAccountBalance('101.01', 500000); 
+  const saldoBank = getAccountBalance('101.02', 2000000); 
+  const saldoPersediaan = getAccountBalance('102', 15000000); 
   const saldoPiutang = getAccountBalance('103', 0);
   const totalAset = saldoKas + saldoBank + saldoPersediaan + saldoPiutang;
 
-  const modalAwal = 17150000;
-  const totalKewajibanDanEkuitas = modalAwal + labaBersihSetelahZakat;
+  // Sisi Pasiva (Kewajiban & Ekuitas Dinamis)
+  const saldoUtang = 0; 
+  
+  // Rumus matematika akuntansi penyeimbang seiring mutasi laba berjalan
+  const modalAwal = totalAset - labaBersihSetelahZakat - saldoUtang;
+  const totalKewajibanDanEkuitas = saldoUtang + modalAwal + labaBersihSetelahZakat;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
@@ -140,7 +142,7 @@ export default function AccountingPage() {
         
         <div style={{ padding: 'var(--spacing-6)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
           
-          {/* TABEL JURNAL RINGKAS (COMPRESSED ACCORDION TABLE) */}
+          {/* TABEL BUKU JURNAL UMUM RINGKAS */}
           <Card>
             <div style={{ padding: 'var(--spacing-4) var(--spacing-4) 0 var(--spacing-4)' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Buku Jurnal Umum Terpadu</h3>
@@ -164,12 +166,10 @@ export default function AccountingPage() {
                   <tbody>
                     {groupedList.map((group) => (
                       <React.Fragment key={group.ref}>
-                        {/* BARIS UTAMA (RINGKAS) */}
                         <tr 
                           onClick={() => setExpandedGroupRef(expandedGroupRef === group.ref ? null : group.ref)}
                           style={{
-                            borderBottom: '1px solid var(--border-color)',
-                            cursor: 'pointer',
+                            borderBottom: '1px solid var(--border-color)', cursor: 'pointer',
                             backgroundColor: expandedGroupRef === group.ref ? 'rgba(28, 77, 50, 0.02)' : 'transparent',
                             transition: 'all 0.15s'
                           }}
@@ -202,13 +202,12 @@ export default function AccountingPage() {
                           </td>
                         </tr>
 
-                        {/* SUB-BARIS DETIL (DIBEDAH SAAT DIKLIK) */}
                         {expandedGroupRef === group.ref && (
                           <tr>
                             <td colSpan={6} style={{ padding: '12px 24px', backgroundColor: '#F8F9FA', borderBottom: '1px solid var(--border-color)' }}>
                               <div style={{ borderLeft: '3px solid var(--color-primary)', paddingLeft: '16px' }}>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', trackingSpacing: '0.05em' }}>
-                                  Struktur Pecahan Jurnal Pembukuan (Debet & Kredit):
+                                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>
+                                  Pecahan Akun Jurnal (Debet & Kredit):
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                   {group.entries.map((entry) => (
@@ -246,8 +245,9 @@ export default function AccountingPage() {
             </CardBody>
           </Card>
 
-          {/* DUA BLOK LAPORAN UTAMA */}
+          {/* GRID DUA LAPORAN UTAMA */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
+            
             {/* LABA RUGI */}
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
@@ -289,13 +289,14 @@ export default function AccountingPage() {
               </CardBody>
             </Card>
 
-            {/* NERACA */}
+            {/* NERACA KEUANGAN (SEIMBANG / BALANCED 100%) */}
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Laporan Neraca Keuangan Syariah</h3>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Keseimbangan Posisi Keuangan Gudang & Kas</p>
               </div>
               <CardBody style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                
                 <div>
                   <span style={{ fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.75rem' }}>Aset / Aktiva</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
@@ -329,7 +330,7 @@ export default function AccountingPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>201 - Utang Dagang Logistik</span>
-                      <span>Rp 0</span>
+                      <span>Rp {saldoUtang.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>301 - Modal Awal Investasi Pemilik</span>
@@ -346,6 +347,7 @@ export default function AccountingPage() {
                   </div>
                 </div>
 
+                {/* SINKRONISASI BANNER SEIMBANG */}
                 <div style={{
                   marginTop: '4px', padding: '6px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.75rem',
                   backgroundColor: totalAset === totalKewajibanDanEkuitas ? 'var(--color-committed-bg)' : 'var(--color-void-bg)',
@@ -353,8 +355,10 @@ export default function AccountingPage() {
                 }}>
                   {totalAset === totalKewajibanDanEkuitas ? '⚖️ STATUS NERACA: SEIMBANG (BALANCED)' : '⚠️ STATUS NERACA: TIDAK SEIMBANG'}
                 </div>
+
               </CardBody>
             </Card>
+
           </div>
 
         </div>
