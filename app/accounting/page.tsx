@@ -37,11 +37,19 @@ export default function AccountingPage() {
   const [coaExpenses, setCoaExpenses] = useState<COAAccount[]>(INITIAL_COA_EXPENSES);
   const [expandedGroupRef, setExpandedGroupRef] = useState<string | null>(null);
 
+  // States Form Pengeluaran Biaya (Kiri)
   const [selectedCoa, setSelectedCoa] = useState('');
   const [paymentSource, setPaymentSource] = useState('101.01 - Kas Utama (Tunai Bengkel)'); 
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDesc, setExpenseDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState('2026-06-20');
+
+  // States Form Uang Masuk / Tambahan Modal (Kanan)
+  const [incomeSource, setIncomeSource] = useState('301 - Modal Awal Investasi Pemilik');
+  const [incomeTarget, setIncomeTarget] = useState('101.01 - Kas Utama (Tunai Bengkel)');
+  const [incomeAmount, setIncomeAmount] = useState('');
+  const [incomeDesc, setIncomeDesc] = useState('');
+  const [incomeDate, setIncomeDate] = useState('2026-06-20');
 
   useEffect(() => {
     const savedJournals = localStorage.getItem('siddeeq_journals');
@@ -74,6 +82,7 @@ export default function AccountingPage() {
     setSelectedCoa(codeInput); 
   };
 
+  // HANDLER A: SIMPAN JURNAL PENGELUARAN BIAYA
   const handleExpenseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCoa || !expenseAmount || !expenseDesc || !expenseDate) return;
@@ -94,10 +103,51 @@ export default function AccountingPage() {
     alert(`Pengeluaran ${uniqueRef} berhasil dibukukan!`);
   };
 
+  // HANDLER B: SIMPAN JURNAL DANA MASUK / TAMBAH MODAL (BARU)
+  const handleIncomeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!incomeAmount || !incomeDesc || !incomeDate) return;
+
+    const amountNum = parseFloat(incomeAmount);
+    const uniqueRef = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const timestamp = Date.now();
+
+    // Debet pada Kas/Bank penampung (Aset bertambah)
+    const debetEntry: JournalEntry = {
+      id: `J-INC-${timestamp}-D`,
+      date: incomeDate,
+      ref: uniqueRef,
+      account: incomeTarget,
+      position: 'DEBET',
+      amount: amountNum,
+      description: incomeDesc,
+      status: 'COMMITTED'
+    };
+
+    // Kredit pada akun sumber modal / penambahan dana
+    const kreditEntry: JournalEntry = {
+      id: `J-INC-${timestamp}-K`,
+      date: incomeDate,
+      ref: uniqueRef,
+      account: incomeSource,
+      position: 'KREDIT',
+      amount: amountNum,
+      description: incomeDesc,
+      status: 'COMMITTED'
+    };
+
+    const updatedJournals = [debetEntry, kreditEntry, ...journals];
+    setJournals(updatedJournals);
+    localStorage.setItem('siddeeq_journals', JSON.stringify(updatedJournals));
+    setIncomeAmount('');
+    setIncomeDesc('');
+    alert(`Alhamdulillah, Penerimaan dana ${uniqueRef} berhasil dibukukan!`);
+  };
+
   const groupedJournals = journals.reduce((groups: Record<string, { ref: string; date: string; description: string; totalAmount: number; status: string; entries: JournalEntry[] }>, item) => {
     const groupKey = item.ref || item.id;
     if (!groups[groupKey]) {
-      groups[groupKey] = { ref: groupKey, date: item.date, description: groupKey.startsWith('EXP') ? item.description : 'Penerimaan penjualan - ' + groupKey, totalAmount: 0, status: item.status, entries: [] };
+      groups[groupKey] = { ref: groupKey, date: item.date, description: groupKey.startsWith('EXP') || groupKey.startsWith('INC') ? item.description : 'Penerimaan penjualan - ' + groupKey, totalAmount: 0, status: item.status, entries: [] };
     }
     groups[groupKey].entries.push(item);
     if (item.position === 'DEBET') {
@@ -108,6 +158,7 @@ export default function AccountingPage() {
 
   const groupedList = Object.values(groupedJournals);
 
+  // Perhitungan Laba Rugi
   const totalPendapatan = journals
     .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith('401'))
     .reduce((sum, j) => sum + j.amount, 0);
@@ -126,6 +177,7 @@ export default function AccountingPage() {
   const alokasiZakat = labaBersihSebelumZakat > 0 ? labaBersihSebelumZakat * 0.025 : 0;
   const labaBersihSetelahZakat = labaBersihSebelumZakat - alokasiZakat;
 
+  // Perhitungan Saldo Akun Neraca
   const getAccountBalance = (accountCode: string, initialBalance = 0) => {
     return journals
       .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith(accountCode))
@@ -141,9 +193,15 @@ export default function AccountingPage() {
   const saldoPiutang = getAccountBalance('103', 0);
   const totalAset = saldoKas + saldoBank + saldoPersediaan + saldoPiutang;
 
+  // Akumulasi modal awal statis + mutasi suntikan dana luar dari jurnal Kredit akun 301
+  const setoranModalTambahan = journals
+    .filter(j => j.status === 'COMMITTED' && j.position === 'KREDIT' && j.account.startsWith('301'))
+    .reduce((sum, j) => sum + j.amount, 0);
+
   const saldoUtang = 0; 
-  const modalAwal = totalAset - labaBersihSetelahZakat - saldoUtang;
-  const totalKewajibanDanEkuitas = saldoUtang + modalAwal + labaBersihSetelahZakat;
+  const modalAwalDasar = totalAset - labaBersihSetelahZakat - saldoUtang - setoranModalTambahan;
+  const totalModalAkhir = modalAwalDasar + setoranModalTambahan;
+  const totalKewajibanDanEkuitas = saldoUtang + totalModalAkhir + labaBersihSetelahZakat;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
@@ -152,10 +210,12 @@ export default function AccountingPage() {
         <TopHeader title="Akuntansi Syariah & Jurnal Otomatis" />
         
         <div style={{ padding: 'var(--spacing-6)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
+          
+          {/* TABEL BUKU JURNAL ACCORDION */}
           <Card>
             <div style={{ padding: 'var(--spacing-4) var(--spacing-4) 0 var(--spacing-4)' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Buku Jurnal Umum Terpadu</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Log transaksi otomatis terintegrasi penuh dari modul POS Kasir Utama</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Log transaksi otomatis terintegrasi penuh dari modul POS Kasir Utama & Modul Internal</p>
             </div>
             <CardBody style={{ padding: 0 }}>
               <div style={{ overflowX: 'auto' }}>
@@ -214,7 +274,9 @@ export default function AccountingPage() {
             </CardBody>
           </Card>
 
+          {/* DUA BLOK LAPORAN UTAMA */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
+            {/* LABA RUGI */}
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Simulasi Laporan Laba Rugi Syariah</h3>
@@ -254,6 +316,7 @@ export default function AccountingPage() {
               </CardBody>
             </Card>
 
+            {/* NERACA KEUANGAN */}
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Laporan Neraca Keuangan Syariah</h3>
@@ -295,8 +358,8 @@ export default function AccountingPage() {
                       <span>Rp {saldoUtang.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>301 - Modal Awal Investasi Pemilik</span>
-                      <span>Rp {modalAwal.toLocaleString('id-ID')}</span>
+                      <span>301 - Modal Investasi Pemilik (Suntikan Dana)</span>
+                      <span>Rp {totalModalAkhir.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-primary)' }}>
                       <span>302 - Laba Ditahan Periode Berjalan</span>
@@ -316,37 +379,68 @@ export default function AccountingPage() {
             </Card>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--spacing-6)' }}>
+          {/* DUA FORM INPUT SEJAJAR DIBAWAH (BIAYA VS DANA MASUK MODAL) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
+            
+            {/* PANEL SEBELAH KIRI: FORM PENGELUARAN BIAYA OPERASIONAL */}
             <Card style={{ borderLeft: '4px solid #D97706' }}>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Pencatatan Pengeluaran Operasional & Biaya</h3>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-primary)' }}>Pencatatan Pengeluaran Operasional & Biaya</h3>
                 </div>
-                <button type="button" onClick={handleAddNewCOA} style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: '#F3F4F6', color: 'var(--color-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer' }}>➕ Tambah Kategori COA Biaya</button>
+                <button type="button" onClick={handleAddNewCOA} style={{ padding: '4px 10px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: '#F3F4F6', color: 'var(--color-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer' }}>➕ Kategori COA</button>
               </div>
               <form onSubmit={handleExpenseSubmit}>
-                <CardBody style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '0.875rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <select value={selectedCoa} onChange={(e) => setSelectedCoa(e.target.value)} required style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <option value="">-- Pilih Kategori COA Biaya --</option>
-                      {coaExpenses.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
-                    </select>
-                    <select value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <option value="101.01 - Kas Utama (Tunai Bengkel)">101.01 - Kas Utama (Tunai Bengkel)</option>
-                      <option value="101.02 - Bank Syariah (Rekening Utama)">101.02 - Bank Syariah (Rekening Utama)</option>
-                    </select>
-                    <Input label="Tanggal" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <Input label="Nominal (Rp)" type="number" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} required />
-                    <textarea placeholder="Deskripsi Keterangan..." value={expenseDesc} onChange={(e) => setExpenseDescription(e.target.value)} required rows={3} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', resize: 'none' }} />
-                  </div>
+                <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+                  <select value={selectedCoa} onChange={(e) => setSelectedCoa(e.target.value)} required style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#fff' }}>
+                    <option value="">-- Pilih Kategori COA Biaya --</option>
+                    {coaExpenses.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
+                  </select>
+                  <select value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#fff' }}>
+                    <option value="101.01 - Kas Utama (Tunai Bengkel)">101.01 - Kas Utama (Tunai Bengkel)</option>
+                    <option value="101.02 - Bank Syariah (Rekening Utama)">101.02 - Bank Syariah (Rekening Utama)</option>
+                  </select>
+                  <Input label="Tanggal Pengeluaran" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required />
+                  <Input label="Nominal Beban (Rp)" type="number" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} required />
+                  <textarea placeholder="Deskripsi Keterangan Pengeluaran..." value={expenseDesc} onChange={(e) => setExpenseDescription(e.target.value)} required rows={2} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', resize: 'none' }} />
                 </CardBody>
-                <CardFooter style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 16px 16px' }}>
-                  <Button type="submit" style={{ backgroundColor: '#D97706', color: '#FFFFFF' }}>✍ Bukukan Jurnal Pengeluaran</Button>
+                <CardFooter style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px' }}>
+                  <Button type="submit" style={{ backgroundColor: '#D97706', color: '#FFFFFF', fontSize: '0.8rem' }}>✍ Bukukan Biaya</Button>
                 </CardFooter>
               </form>
             </Card>
+
+            {/* PANEL SEBELAH KANAN: FORM JURNAL DANA MASUK / SUNTIKAN MODAL BARU */}
+            <Card style={{ borderLeft: '4px solid var(--color-primary)' }}>
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-primary)' }}>Pencatatan Jurnal Dana Masuk & Suntikan Modal</h3>
+              </div>
+              <form onSubmit={handleIncomeSubmit}>
+                <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontWeight: 600 }}>Pilih Akun Sumber Dana (Kredit)</label>
+                    <select value={incomeSource} onChange={(e) => setIncomeSource(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#fff' }}>
+                      <option value="301 - Modal Awal Investasi Pemilik">301 - Modal Investasi Pemilik (Suntikan Modal)</option>
+                      <option value="402 - Pendapatan Non-Operasional / Lainnya">402 - Pendapatan Non-Operasional / Lainnya (Hibah/Syirkah)</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontWeight: 600 }}>Rekening Penampung Dana (Debet)</label>
+                    <select value={incomeTarget} onChange={(e) => setIncomeTarget(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#fff' }}>
+                      <option value="101.01 - Kas Utama (Tunai Bengkel)">101.01 - Kas Utama (Tunai Bengkel)</option>
+                      <option value="101.02 - Bank Syariah (Rekening Utama)">101.02 - Bank Syariah (Rekening Utama)</option>
+                    </select>
+                  </div>
+                  <Input label="Tanggal Dana Masuk" type="date" value={incomeDate} onChange={(e) => setIncomeDate(e.target.value)} required />
+                  <Input label="Nominal Uang Masuk (Rp)" type="number" placeholder="Contoh: 5000000" value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)} required />
+                  <textarea placeholder="Deskripsi Keterangan Dana Masuk (Contoh: Setoran tambahan modal pemilik untuk ekspansi cabang...)" value={incomeDesc} onChange={(e) => setIncomeDesc(e.target.value)} required rows={2} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', resize: 'none' }} />
+                </CardBody>
+                <CardFooter style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px' }}>
+                  <Button type="submit" style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', fontSize: '0.8rem' }}>✓ Bukukan Uang Masuk</Button>
+                </CardFooter>
+              </form>
+            </Card>
+
           </div>
 
         </div>
