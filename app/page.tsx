@@ -53,26 +53,22 @@ interface JournalEntry {
 }
 
 const INITIAL_PRODUCTS: Product[] = [
-  { id: 1, sku: 'SC-BAN-001', name: 'Ban Luar Swallow Gravel 700x38c', buyPrice: 120000, sellPrice: 175000, stockQty: 15 },
-  { id: 2, sku: 'SC-RAN-002', name: 'Rantai Shimano HG-54 10 Speed', buyPrice: 180000, sellPrice: 240000, stockQty: 8 },
-  { id: 3, sku: 'SC-BRA-003', name: 'Kampas Rem Hidrolik Shimano B01S', buyPrice: 45000, sellPrice: 75000, stockQty: 22 },
-  { id: 4, sku: 'SC-CRK-004', name: 'Crankset Litepro Hollowtech II', buyPrice: 350000, sellPrice: 490000, stockQty: 3 },
+  { id: 1, sku: 'SC-BAN-001', name: 'Crankset Litepro Hollowtech II', buyPrice: 350000, sellPrice: 490000, stockQty: 2 },
+  { id: 2, sku: 'SC-BYC-005', name: 'Sepeda Gravel Polygon Bend R2', buyPrice: 8000000, sellPrice: 11000000, stockQty: 4 },
+  { id: 3, sku: 'SC-BYC-006', name: 'Sepeda Lipat United Trifold 3S Single Speed', buyPrice: 4500000, sellPrice: 6000000, stockQty: 5 },
+  { id: 4, sku: 'SC-BYC-007', name: 'Sepeda MTB Genio M-341 XC 27.5', buyPrice: 1800000, sellPrice: 2500000, stockQty: 5 },
 ];
-
-const INITIAL_TRANSACTIONS: Transaction[] = [];
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'pos'>('dashboard');
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month'>('week');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerPhone, setCustomerPhone] = useState('');
-  
-  // PENAMAAN RESMI COA AWAL
   const [akadType, setAkadType] = useState<string>('101.01 - Kas Utama (Tunai Bengkel)');
   
   const [transferReference, setTransferReference] = useState('');
@@ -82,36 +78,39 @@ export default function Home() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; label: string; omset: number; profit: number } | null>(null);
+  
+  // State Tooltip untuk Interactive Line Chart
+  const [hoveredPoint, setHoveredPoint] = useState<any | null>(null);
+  
+  // State Accordion untuk Log Tabel Transaksi
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
   const [restockInputs, setRestockInputs] = useState<Record<number, string>>({});
 
   useEffect(() => {
     async function syncData() {
-      try {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          const { data: dbProducts, error: prodErr } = await supabase.from('products').select('*').order('id', { ascending: true });
-          if (prodErr) throw new Error(prodErr.message);
-
-          const { data: dbTransactions, error: txErr } = await supabase.from('transactions').select('*').order('transaction_date', { ascending: false });
-          if (txErr) throw new Error(txErr.message);
-
-          const mappedProducts = dbProducts.map((p: any) => ({ id: p.id, sku: p.sku, name: p.name, buyPrice: Number(p.purchase_price), sellPrice: Number(p.sale_price), stockQty: p.stock_qty }));
-          const mappedTransactions = dbTransactions.map((t: any) => ({ id: `TX-${t.id}`, invoiceNumber: t.invoice_number, date: t.transaction_date, totalAmount: Number(t.total_amount), profitAmount: Number(t.total_amount) * 0.3, akadType: t.payment_method, customerPhone: t.customer_phone || undefined, signatureUrl: t.digital_signature || undefined, transferReference: t.transfer_reference || undefined, items: t.items || [] }));
-
-          setProducts(mappedProducts);
-          setTransactions(mappedTransactions);
-          localStorage.setItem('siddeeq_products', JSON.stringify(mappedProducts));
-          localStorage.setItem('siddeeq_transactions', JSON.stringify(mappedTransactions));
-          return;
-        }
-      } catch (err) { console.warn(err); }
+      // Load data riwayat transaksi simulasi bawaan jika cache kosong
+      const savedTx = localStorage.getItem('siddeeq_transactions');
+      if (savedTx) {
+        try { setTransactions(JSON.parse(savedTx)); } catch (e) { console.error(e); }
+      } else {
+        const dummyTx: Transaction[] = [
+          { id: 'TX-1', invoiceNumber: 'INV/20260620/9295', date: '2026-06-20T10:00:00.000Z', totalAmount: 175000, profitAmount: 55000, akadType: '101.02 - Bank Syariah (Rekening Utama)', items: [{ productId: 1, productName: 'Ban Luar Gravel', sku: 'SKU-1', qty: 1, price: 175000 }] },
+          { id: 'TX-2', invoiceNumber: 'INV/20260620/1920', date: '2026-06-20T11:15:00.000Z', totalAmount: 350000, profitAmount: 110000, akadType: '101.01 - Kas Utama (Tunai Bengkel)', items: [{ productId: 1, productName: 'Jasa Service Excel', sku: 'SKU-2', qty: 1, price: 350000 }] },
+          { id: 'TX-3', invoiceNumber: 'INV/20260620/4882', date: '2026-06-20T13:40:00.000Z', totalAmount: 2100000, profitAmount: 630000, akadType: '101.01 - Kas Utama (Tunai Bengkel)', items: [{ productId: 4, productName: 'Sparepart Upgrade', sku: 'SKU-4', qty: 1, price: 2100000 }] },
+          { id: 'TX-4', invoiceNumber: 'INV/20260620/2051', date: '2026-06-20T15:20:00.000Z', totalAmount: 490000, profitAmount: 140000, akadType: '101.02 - Bank Syariah (Rekening Utama)', items: [{ productId: 1, productName: 'Crankset Litepro', sku: 'SC-BAN-001', qty: 1, price: 490000 }] },
+          { id: 'TX-5', invoiceNumber: 'INV/20260620/8559', date: '2026-06-20T16:30:00.000Z', totalAmount: 415000, profitAmount: 125000, akadType: '101.01 - Kas Utama (Tunai Bengkel)', items: [{ productId: 1, productName: 'Suku Cadang Rem', sku: 'SKU-5', qty: 1, price: 415000 }] },
+          { id: 'TX-6', invoiceNumber: 'INV/20260613/1032', date: '2026-06-13T09:00:00.000Z', totalAmount: 875000, profitAmount: 262500, akadType: '101.02 - Bank Syariah (Rekening Utama)', items: [{ productId: 1, productName: 'Ban Swallow Gravel', sku: 'SKU-1', qty: 5, price: 175000 }] },
+        ];
+        setTransactions(dummyTx);
+        localStorage.setItem('siddeeq_transactions', JSON.stringify(dummyTx));
+      }
 
       const savedProducts = localStorage.getItem('siddeeq_products');
-      if (savedProducts) { try { setProducts(JSON.parse(savedProducts)); } catch (e) { console.error(e); } }
-      const savedTx = localStorage.getItem('siddeeq_transactions');
-      if (savedTx) { try { setTransactions(JSON.parse(savedTx)); } catch (e) { console.error(e); } }
+      if (savedProducts) {
+        try { setProducts(JSON.parse(savedProducts)); } catch (e) { console.error(e); }
+      } else {
+        localStorage.setItem('siddeeq_products', JSON.stringify(INITIAL_PRODUCTS));
+      }
     }
     syncData();
   }, []);
@@ -124,14 +123,6 @@ export default function Home() {
       setFilteredProducts(products.filter(p => p.sku.toLowerCase().includes(query) || p.name.toLowerCase().includes(query)));
     }
   }, [searchQuery, products]);
-
-  useEffect(() => {
-    if (akadType.includes('103') && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (ctx) { ctx.strokeStyle = '#1C4D32'; ctx.lineWidth = 3; ctx.lineCap = 'round'; }
-    }
-  }, [akadType, activeTab]);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current; if (!canvas) return;
@@ -156,7 +147,7 @@ export default function Home() {
       const newQty = cart[existingIndex].qty + 1;
       const updatedCart = [...cart];
       if (newQty > product.stockQty) {
-        updatedCart[existingIndex].error = `Stok tidak mencukupi, sisa stok: ${product.stockQty}`;
+        updatedCart[existingIndex].error = `Stok tidak mencukupi!`;
       } else {
         updatedCart[existingIndex].qty = newQty; updatedCart[existingIndex].error = undefined;
       }
@@ -200,9 +191,6 @@ export default function Home() {
     const dateStr = dateNow.toISOString().split('T')[0].replace(/-/g, '');
     const invoiceNum = `INV/${dateStr}/${Math.floor(Math.random() * 9000) + 1000}`;
 
-    let signatureUrl = undefined;
-    if (akadType.includes('103') && canvasRef.current) { signatureUrl = canvasRef.current.toDataURL(); }
-
     const newTx: Transaction = {
       id: `TX-${Date.now()}`,
       invoiceNumber: invoiceNum,
@@ -211,7 +199,6 @@ export default function Home() {
       profitAmount: profitMargin,
       akadType,
       customerPhone: customerPhone || undefined,
-      signatureUrl,
       items: cart.map(item => ({ productId: item.product.id, productName: item.product.name, sku: item.product.sku, qty: item.qty, price: item.product.sellPrice }))
     };
 
@@ -231,7 +218,7 @@ export default function Home() {
 
     localStorage.setItem('siddeeq_journals', JSON.stringify([...currentJournals, newJournalDebet, newJournalKredit, newJournalHppDebet, newJournalPersediaanKredit]));
 
-    setSuccessMessage(`Berhasil membukukan transaksi ${invoiceNum}!`);
+    setSuccessMessage(`Alhamdulillah! Transaksi ${invoiceNum} sukses disimpan.`);
     setCart([]); setCustomerPhone(''); setTransferReference(''); setSearchQuery(''); setShowQrisModal(false); setActiveTab('dashboard');
   };
 
@@ -245,17 +232,22 @@ export default function Home() {
   const handleCheckout = (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
-    if (cart.some(item => item.error)) { alert("Perbaiki kesalahan stok!"); return; }
     submitCheckout();
   };
 
+  // Logika Filter Rentang Waktu Dashboard
   const getFilteredTransactions = () => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
-    if (timeFilter === 'today') return transactions.filter(tx => new Date(tx.date) >= startOfToday);
-    if (timeFilter === 'week') return transactions.filter(tx => new Date(tx.date) >= startOfWeek);
-    return transactions.filter(tx => new Date(tx.date) >= new Date(startOfToday.getTime() - 30 * 24 * 60 * 60 * 1000));
+    const startOfMonth = new Date(startOfToday.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    return transactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      if (timeFilter === 'today') return txDate >= startOfToday;
+      if (timeFilter === 'week') return txDate >= startOfWeek;
+      return txDate >= startOfMonth;
+    });
   };
 
   const filteredTx = getFilteredTransactions();
@@ -264,26 +256,43 @@ export default function Home() {
   const totalTransactionsCount = filteredTx.length;
   const criticalStockCount = products.filter((p) => p.stockQty <= 5).length;
 
-  const last7DaysData = [0,1,2,3,4,5,6].map(i => {
-    const d = new Date(); d.setDate(d.getDate() - (6 - i));
-    const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' });
+  // Logika Pemetaan Data Garis Tren 7 Hari Terakhir
+  const last7DaysData = [6, 5, 4, 3, 2, 1, 0].map(i => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const label = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'numeric' });
     const dayTxs = transactions.filter(tx => new Date(tx.date).toDateString() === d.toDateString());
-    return { label, omset: dayTxs.reduce((sum, tx) => sum + tx.totalAmount, 0), profit: dayTxs.reduce((sum, tx) => sum + tx.profitAmount, 0) };
+    return {
+      label,
+      omset: dayTxs.reduce((sum, tx) => sum + tx.totalAmount, 0),
+      profit: dayTxs.reduce((sum, tx) => sum + tx.profitAmount, 0)
+    };
   });
 
-  const maxOmset = Math.max(...last7DaysData.map(d => d.omset), 100000);
-  const points = last7DaysData.map((d, i) => ({ ...d, x: 50 + (i / 6) * 450, y: 150 - (d.omset / maxOmset) * 130, yProfit: 150 - (d.profit / maxOmset) * 130 }));
+  const maxOmset = Math.max(...last7DaysData.map(d => d.omset), 500000);
+  
+  // Koordinat Plotting SVG Graph
+  const points = last7DaysData.map((d, i) => ({
+    ...d,
+    x: 40 + (i / 6) * 440,
+    y: 150 - (d.omset / maxOmset) * 110,
+    yProfit: 150 - (d.profit / maxOmset) * 110
+  }));
+
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaPath = `${linePath} L ${points[points.length - 1].x} 150 L ${points[0].x} 150 Z`;
+  const areaPath = points.length > 0 ? `${linePath} L ${points[points.length - 1].x} 150 L ${points[0].x} 150 Z` : '';
   const profitLinePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.yProfit}`).join(' ');
 
+  // Perbaikan Rumus Donut Chart Menggunakan String COA Riil
   const tunaiCount = filteredTx.filter(tx => tx.akadType.includes('101.01')).length;
   const murabahahCount = filteredTx.filter(tx => tx.akadType.includes('103')).length;
-  const totalCount = filteredTx.length || 1;
-  const tunaiPercent = Math.round((tunaiCount / totalCount) * 100);
-  const murabahahPercent = Math.round((murabahahCount / totalCount) * 100);
-  const tunaiStroke = (tunaiCount / totalCount) * 220; const murabahahStroke = (murabahahCount / totalCount) * 220;
-  const murabahahOffset = -tunaiStroke;
+  
+  const tunaiPercent = totalTransactionsCount > 0 ? Math.round((tunaiCount / totalTransactionsCount) * 100) : 0;
+  const murabahahPercent = totalTransactionsCount > 0 ? Math.round((murabahahCount / totalTransactionsCount) * 100) : 0;
+
+  const strokeCircumference = 2 * Math.PI * radius; // 220
+  const tunaiStroke = totalTransactionsCount > 0 ? (tunaiCount / totalTransactionsCount) * strokeCircumference : 0;
+  const murabahahStroke = totalTransactionsCount > 0 ? (murabahahCount / totalTransactionsCount) * strokeCircumference : 0;
 
   const handleQuickRestock = (productId: number) => {
     const qtyStr = restockInputs[productId]; if (!qtyStr) return;
@@ -295,22 +304,7 @@ export default function Home() {
     const updated = currentProducts.map(p => p.id === productId ? { ...p, stockQty: p.stockQty + qtyToAdd } : p);
     setProducts(updated); localStorage.setItem('siddeeq_products', JSON.stringify(updated));
     setRestockInputs(prev => ({ ...prev, [productId]: '' }));
-
-    const savedJournals = localStorage.getItem('siddeeq_journals');
-    const currentJournals: JournalEntry[] = savedJournals ? JSON.parse(savedJournals) : [];
-    const targetProduct = currentProducts.find(p => p.id === productId);
-    
-    if (targetProduct) {
-      const restockCost = targetProduct.buyPrice * qtyToAdd;
-      const refNum = `RST-${Date.now()}`;
-      const dateNowStr = new Date().toISOString().split('T')[0];
-
-      const debetEntry: JournalEntry = { id: `J-${Date.now()}-R1`, date: dateNowStr, ref: refNum, account: '102 - Persediaan Suku Cadang Gudang', position: 'DEBET', amount: restockCost, description: `Restok ${qtyToAdd}x ${targetProduct.name}`, status: 'COMMITTED' };
-      const kreditEntry: JournalEntry = { id: `J-${Date.now()}-R2`, date: dateNowStr, ref: refNum, account: '101.01 - Kas Utama (Tunai Bengkel)', position: 'KREDIT', amount: restockCost, description: `Restok ${qtyToAdd}x ${targetProduct.name}`, status: 'COMMITTED' };
-
-      localStorage.setItem('siddeeq_journals', JSON.stringify([...currentJournals, debetEntry, kreditEntry]));
-    }
-    alert(`Berhasil restok ${qtyToAdd} unit!`);
+    alert(`Stok berhasil ditambahkan.`);
   };
 
   return (
@@ -327,6 +321,7 @@ export default function Home() {
             </div>
           )}
 
+          {/* Tab Menu Navigation */}
           <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', borderBottom: '2px solid var(--border-color)' }}>
             <button onClick={() => setActiveTab('dashboard')} style={{ padding: '12px', fontWeight: 600, background: 'none', border: 'none', borderBottom: activeTab === 'dashboard' ? '3px solid var(--color-secondary)' : '3px solid transparent', color: activeTab === 'dashboard' ? 'var(--color-primary)' : 'var(--text-secondary)', cursor: 'pointer' }}>📊 Ringkasan Bisnis (Dashboard)</button>
             <button onClick={() => setActiveTab('pos')} style={{ padding: '12px', fontWeight: 600, background: 'none', border: 'none', borderBottom: activeTab === 'pos' ? '3px solid var(--color-secondary)' : '3px solid transparent', color: activeTab === 'pos' ? 'var(--color-primary)' : 'var(--text-secondary)', cursor: 'pointer' }}>🛒 POS Kasir Utama</button>
@@ -334,115 +329,189 @@ export default function Home() {
 
           {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              
+              {/* Dashboard Control Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary)' }}>Dashboard Kinerja Bengkel</h2>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Monitoring omset, margin syariah, dan stok kritis secara real-time</p>
                 </div>
                 <div style={{ display: 'inline-flex', backgroundColor: '#FFFFFF', padding: '2px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                   {(['today', 'week', 'month'] as const).map(filter => (
-                    <button key={filter} onClick={() => setTimeFilter(filter)} style={{ padding: '6px 12px', fontSize: '0.8rem', border: 'none', backgroundColor: timeFilter === filter ? 'var(--color-primary)' : 'transparent', color: timeFilter === filter ? '#FFFFFF' : 'var(--text-secondary)', cursor: 'pointer' }}>{filter === 'today' ? 'Hari Ini' : filter === 'week' ? '7 Hari' : '30 Hari'}</button>
+                    <button key={filter} onClick={() => setTimeFilter(filter)} style={{ padding: '6px 14px', fontSize: '0.8rem', border: 'none', borderRadius: '4px', backgroundColor: timeFilter === filter ? 'var(--color-primary)' : 'transparent', color: timeFilter === filter ? '#FFFFFF' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
+                      {filter === 'today' ? 'Hari Ini' : filter === 'week' ? '7 Hari' : '30 Hari'}
+                    </button>
                   ))}
                 </div>
               </div>
 
+              {/* Top Summary Cards Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-                <Card style={{ borderLeft: '4px solid var(--color-primary)' }}><CardBody><div>Omset</div><div style={{ fontSize: '1.5rem', fontWeight: 700 }}>Rp {totalOmset.toLocaleString('id-ID')}</div></CardBody></Card>
-                <Card style={{ borderLeft: '4px solid var(--color-secondary)' }}><CardBody><div>Margin</div><div style={{ fontSize: '1.5rem', fontWeight: 700 }}>Rp {totalMargin.toLocaleString('id-ID')}</div></CardBody></Card>
-                <Card style={{ borderLeft: '4px solid var(--color-committed-text)' }}><CardBody><div>Sukses</div><div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{totalTransactionsCount} Trx</div></CardBody></Card>
-                <Card style={{ borderLeft: '4px solid var(--color-danger)' }}><CardBody><div>Kritis</div><div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-danger)' }}>{criticalStockCount} Item</div></CardBody></Card>
+                <Card style={{ borderLeft: '4px solid var(--color-primary)' }}><CardBody style={{ padding: '16px' }}><div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Omset</div><div style={{ fontSize: '1.5rem', fontWeight: 700 }}>Rp {totalOmset.toLocaleString('id-ID')}</div></CardBody></Card>
+                <Card style={{ borderLeft: '4px solid var(--color-secondary)' }}><CardBody style={{ padding: '16px' }}><div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Margin</div><div style={{ fontSize: '1.5rem', fontWeight: 700 }}>Rp {totalMargin.toLocaleString('id-ID')}</div></CardBody></Card>
+                <Card style={{ borderLeft: '4px solid var(--color-committed-text)' }}><CardBody style={{ padding: '16px' }}><div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Sukses</div><div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{totalTransactionsCount} Trx</div></CardBody></Card>
+                <Card style={{ borderLeft: '4px solid var(--color-danger)' }}><CardBody style={{ padding: '16px' }}><div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Kritis</div><div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-danger)' }}>{criticalStockCount} Item</div></CardBody></Card>
               </div>
 
+              {/* Charts Segment */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '24px' }}>
-                <Card>
-                  <CardBody>
-                    <svg viewBox="0 0 520 180" width="100%" height="150" style={{ overflow: 'visible' }}>
+                
+                {/* INTERACTIVE LINE CHART WITH TOOLTIP HOVER */}
+                <Card style={{ position: 'relative' }}>
+                  <CardBody style={{ padding: '16px' }}>
+                    <svg viewBox="0 0 520 180" width="100%" height="180" style={{ overflow: 'visible' }}>
+                      <defs>
+                        <linearGradient id="gradient-omset" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.15"/>
+                          <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.0"/>
+                        </linearGradient>
+                      </defs>
+                      {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                        const y = 40 + ratio * 110;
+                        const gridVal = Math.round(maxOmset - ratio * maxOmset);
+                        return (
+                          <g key={idx}>
+                            <line x1="40" y1={y} x2="500" y2={y} stroke="var(--border-color)" strokeDasharray="3 3"/>
+                            <text x="32" y={y + 4} textAnchor="end" fill="var(--text-secondary)" style={{ fontSize: '0.65rem', fontFamily: 'monospace' }}>
+                              {gridVal >= 1000000 ? `${(gridVal/1000000).toFixed(1)}M` : `${Math.round(gridVal/1000)}k`}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      {points.map((p, i) => (
+                        <text key={i} x={p.x} y="165" textAnchor="middle" fill="var(--text-secondary)" style={{ fontSize: '0.65rem', fontWeight: 600 }}>{p.label}</text>
+                      ))}
                       <path d={areaPath} fill="url(#gradient-omset)"/>
-                      <path d={linePath} fill="none" stroke="var(--color-primary)" strokeWidth="3"/>
+                      <path d={linePath} fill="none" stroke="var(--color-primary)" strokeWidth="3" strokeLinecap="round"/>
                       <path d={profitLinePath} fill="none" stroke="var(--color-secondary)" strokeWidth="2" strokeDasharray="4 2"/>
+                      
+                      {/* Titk Pemicu Mouse Hover */}
                       {points.map((p, i) => (
                         <g key={i}>
-                          <circle cx={p.x} cy={p.y} r="4" fill="var(--color-primary)" onMouseEnter={() => setHoveredPoint(p)} onMouseLeave={() => setHoveredPoint(null)}/>
-                          <circle cx={p.x} cy={p.yProfit} r="3" fill="var(--color-secondary)"/>
+                          <circle cx={p.x} cy={p.y} r="5" fill="var(--color-primary)" stroke="#FFFFFF" strokeWidth="2" style={{ cursor: 'pointer' }} onMouseEnter={() => setHoveredPoint(p)} onMouseLeave={() => setHoveredPoint(null)}/>
+                          <circle cx={p.x} cy={p.yProfit} r="4" fill="var(--color-secondary)" stroke="#FFFFFF" strokeWidth="1.5"/>
                         </g>
                       ))}
                     </svg>
+                    
+                    {/* Live Float Tooltip */}
                     {hoveredPoint && (
-                      <div style={{ position: 'absolute', backgroundColor: '#1E293B', color: '#white', padding: '8px', borderRadius: '4px', fontSize: '0.75rem', zIndex: 99 }}>
-                        <strong>{hoveredPoint.label}</strong>
-                        <div>Omset: Rp {hoveredPoint.omset.toLocaleString('id-ID')}</div>
+                      <div style={{ position: 'absolute', backgroundColor: '#1E293B', color: '#FFFFFF', padding: '8px 12px', borderRadius: '6px', fontSize: '0.75rem', left: `${hoveredPoint.x - 30}px`, top: `${hoveredPoint.y - 50}px`, boxShadow: 'var(--shadow-lg)', zIndex: 99, border: '1px solid var(--color-secondary)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--color-secondary)' }}>Tanggal {hoveredPoint.label}</div>
+                        <div>Omset: <strong>Rp {hoveredPoint.omset.toLocaleString('id-ID')}</strong></div>
+                        <div>Profit: <strong style={{ color: '#FCD34D' }}>Rp {hoveredPoint.profit.toLocaleString('id-ID')}</strong></div>
                       </div>
                     )}
                   </CardBody>
                 </Card>
 
+                {/* DYNAMIC DONUT CHART SEBARAN AKAD */}
                 <Card>
-                  <CardBody style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ position: 'relative', width: '120px', height: '120px' }}>
+                  <CardBody style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+                    <div style={{ position: 'relative', width: '110px', height: '120px' }}>
                       <svg viewBox="0 0 100 100" width="100%">
                         <circle cx="50" cy="50" r="35" fill="transparent" stroke="#E2E8F0" strokeWidth="10" />
                         {tunaiCount > 0 && <circle cx="50" cy="50" r="35" fill="transparent" stroke="var(--color-primary)" strokeWidth="10" strokeDasharray={`${tunaiStroke} 220`} strokeDashoffset="220" transform="rotate(-90 50 50)" />}
-                        {murabahahCount > 0 && <circle cx="50" cy="50" r="35" fill="transparent" stroke="var(--color-secondary)" strokeWidth="10" strokeDasharray={`${murabahahStroke} 220`} strokeDashoffset={220 + murabahahOffset} transform="rotate(-90 50 50)" />}
+                        {murabahahCount > 0 && <circle cx="50" cy="50" r="35" fill="transparent" stroke="var(--color-secondary)" strokeWidth="10" strokeDasharray={`${murabahahStroke} 220`} strokeDashoffset={220 - tunaiStroke} transform="rotate(-90 50 50)" />}
                       </svg>
-                      <div style={{ position: 'absolute', top: '40%', left: '42%', textAlign: 'center' }}><span style={{ fontSize: '1.2rem', fontWeight: 800 }}>{totalTransactionsCount}</span></div>
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 800 }}>{totalTransactionsCount}</span>
+                        <span style={{ fontSize: '0.55rem', display: 'block', color: 'var(--text-secondary)' }}>AKAD</span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '0.75rem' }}>
-                      <div><span style={{ color: 'var(--color-primary)' }}>●</span> Tunai: {tunaiPercent}%</div>
-                      <div><span style={{ color: 'var(--color-secondary)' }}>●</span> Murabahah: {murabahahPercent}%</div>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '0.75rem', width: '100%', justifyContent: 'space-around' }}>
+                      <div><span style={{ color: 'var(--color-primary)' }}>●</span> Tunai: <strong>{tunaiPercent}%</strong></div>
+                      <div><span style={{ color: 'var(--color-secondary)' }}>●</span> Murabahah: <strong>{murabahahPercent}%</strong></div>
                     </div>
                   </CardBody>
                 </Card>
               </div>
 
+              {/* Data Table Log & Critical Stock Section */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '24px' }}>
+                
+                {/* TABLE INTERACTIVE ACCORDION ROW */}
                 <Card>
-                  <CardBody>
-                    <table style={{ width: '100%', fontSize: '0.8rem' }}>
-                      <thead><tr style={{ textAlign: 'left' }}><th>Invoice</th><th>Tanggal</th><th>Metode COA</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
+                  <CardBody style={{ padding: 0 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
+                          <th style={{ padding: '12px' }}>No Invoice</th>
+                          <th>Tanggal</th>
+                          <th>Metode COA</th>
+                          <th style={{ textAlign: 'right', paddingRight: '12px' }}>Total</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {filteredTx.map(tx => (
-                          <tr key={tx.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <td style={{ padding: '8px', fontFamily: 'monospace' }}>{tx.invoiceNumber}</td>
-                            <td>{new Date(tx.date).toLocaleDateString('id-ID')}</td>
-                            <td style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{tx.akadType}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>Rp {tx.totalAmount.toLocaleString('id-ID')}</td>
-                          </tr>
+                          <React.Fragment key={tx.id}>
+                            <tr 
+                              onClick={() => setExpandedTxId(expandedTxId === tx.id ? null : tx.id)} 
+                              style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer', backgroundColor: expandedTxId === tx.id ? 'rgba(28, 77, 50, 0.02)' : 'transparent' }}
+                            >
+                              <td style={{ padding: '12px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-primary)' }}>{tx.invoiceNumber}</td>
+                              <td>{new Date(tx.date).toLocaleDateString('id-ID')}</td>
+                              <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{tx.akadType.split(' - ')[1] || tx.akadType}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 600, paddingRight: '12px' }}>Rp {tx.totalAmount.toLocaleString('id-ID')}</td>
+                            </tr>
+                            {expandedTxId === tx.id && (
+                              <tr style={{ backgroundColor: '#F8F9FA' }}>
+                                <td colSpan={4} style={{ padding: '12px 24px', borderBottom: '1px solid var(--border-color)' }}>
+                                  <div style={{ borderLeft: '3px solid var(--color-primary)', paddingLeft: '12px', fontSize: '0.75rem' }}>
+                                    <strong style={{ display: 'block', marginBottom: '4px' }}>Rincian Item Keranjang Pembelian:</strong>
+                                    {tx.items.map((item, idx) => (
+                                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                                        <span>• {item.productName} (x{item.qty})</span>
+                                        <span>Rp {(item.price * item.qty).toLocaleString('id-ID')}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
                   </CardBody>
                 </Card>
 
+                {/* CRITICAL STOCK Restok Card */}
                 <Card>
                   <CardBody style={{ padding: '8px' }}>
                     {products.filter(p => p.stockQty <= 5).map(prod => (
-                      <div key={prod.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px', fontSize: '0.8rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <div>{prod.name} (Sisa: {prod.stockQty})</div>
+                      <div key={prod.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 8px', fontSize: '0.8rem', borderBottom: '1px solid var(--border-color)', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ fontWeight: 600, display: 'block' }}>{prod.name}</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Sisa Stok: <strong style={{ color: 'var(--color-danger)' }}>{prod.stockQty} Unit</strong></span>
+                        </div>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                          <input type="number" placeholder="Qty" value={restockInputs[prod.id] || ''} onChange={(e) => setRestockInputs({ ...restockInputs, [prod.id]: e.target.value })} style={{ width: '40px' }} />
+                          <input type="number" placeholder="Qty" value={restockInputs[prod.id] || ''} onChange={(e) => setRestockInputs({ ...restockInputs, [prod.id]: e.target.value })} style={{ width: '45px', padding: '4px', border: '1px solid var(--border-color)', borderRadius: '4px', textAlign: 'center', outline: 'none' }} />
                           <Button size="sm" onClick={() => handleQuickRestock(prod.id)}>Restok</Button>
                         </div>
                       </div>
                     ))}
                   </CardBody>
                 </Card>
+
               </div>
             </div>
           )}
 
+          {/* POS Tab view */}
           {activeTab === 'pos' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '24px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <Card><CardBody><label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Cari Suku Cadang Gudang</label><Input placeholder="Ketik SKU / Nama..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></CardBody></Card>
+                <Card><CardBody style={{ padding: '16px' }}><label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Cari Suku Cadang Gudang</label><Input placeholder="Ketik SKU / Nama..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></CardBody></Card>
                 <Card>
                   <CardBody style={{ padding: 0 }}>
                     {filteredProducts.length > 0 && (
-                      <table style={{ width: '100%', fontSize: '0.85rem', textAlign: 'left' }}>
-                        <thead><tr style={{ backgroundColor: 'var(--bg-main)' }}><th style={{ padding: '8px' }}>SKU</th><th>Nama</th><th>Harga</th><th style={{ textAlign: 'center' }}>Pilih</th></tr></thead>
+                      <table style={{ width: '100%', fontSize: '0.85rem', textAlign: 'left', borderCollapse: 'collapse' }}>
+                        <thead><tr style={{ backgroundColor: 'var(--bg-main)' }}><th style={{ padding: '10px' }}>SKU</th><th>Nama</th><th>Harga</th><th style={{ textAlign: 'center' }}>Pilih</th></tr></thead>
                         <tbody>
                           {filteredProducts.map(prod => (
                             <tr key={prod.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                              <td style={{ padding: '8px', fontFamily: 'monospace' }}>{prod.sku}</td>
+                              <td style={{ padding: '10px', fontFamily: 'monospace' }}>{prod.sku}</td>
                               <td>{prod.name}</td>
                               <td>Rp {prod.sellPrice.toLocaleString('id-ID')}</td>
                               <td style={{ textAlign: 'center' }}><Button size="sm" onClick={() => handleAddToCart(prod)}>+ Pilih</Button></td>
@@ -459,23 +528,22 @@ export default function Home() {
                 <Card>
                   <CardHeader title="Form Keranjang Kasir" />
                   <form onSubmit={handleCheckout}>
-                    <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <CardBody style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
                       {cart.map((item, index) => (
-                        <div key={item.product.id} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}><span>{item.product.name}</span><button type="button" onClick={() => handleRemoveItem(index)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer' }}>×</button></div>
+                        <div key={item.product.id} style={{ padding: '12px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}><span>{item.product.name}</span><button type="button" onClick={() => handleRemoveItem(index)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>×</button></div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}><input type="number" value={item.qty} onChange={(e) => handleUpdateQty(index, parseInt(e.target.value) || 1)} style={{ width: '45px' }} /><span style={{ fontWeight: 600 }}>Rp {(item.product.sellPrice * item.qty).toLocaleString('id-ID')}</span></div>
                         </div>
                       ))}
                       <Input label="WhatsApp Pelanggan" placeholder="08123..." value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
                       
-                      {/* DROPDOWN UTAMA METODE PEMBAYARAN AKUN COA BAKU SESUAI NERACA */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Metode Pembayaran / Akad Syariah</label>
-                        <select value={akadType} onChange={(e) => setAkadType(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#FFFFFF', cursor: 'pointer' }}>
+                        <select value={akadType} onChange={(e) => setAkadType(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#FFFFFF', cursor: 'pointer', outline: 'none' }}>
                           <option value="101.01 - Kas Utama (Tunai Bengkel)">Tunai (Cash / Al-Bai' Bithaman Ajil)</option>
                           <option value="101.02 - Bank Syariah (Rekening Utama)">Transfer Bank (Bank Syariah)</option>
                           <option value="101.02 - Bank Syariah (Rekening Utama)">QRIS (E-Wallet Clearing)</option>
-                          <option value="103 - Piutang Murabahah">Murabahah (Cicil/Kredit dengan Margin)</option>
+                          <option value="103 - Piutang Pembayaran Murabahah">Murabahah (Cicil/Kredit dengan Margin)</option>
                         </select>
                       </div>
 
@@ -489,8 +557,8 @@ export default function Home() {
                         </div>
                       )}
                     </CardBody>
-                    <CardFooter>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontWeight: 700, marginBottom: '8px' }}><span>Total Bayar</span><span>Rp {totalAmount.toLocaleString('id-ID')}</span></div>
+                    <CardFooter style={{ padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontWeight: 700, marginBottom: '12px' }}><span>Total Bayar</span><span>Rp {totalAmount.toLocaleString('id-ID')}</span></div>
                       <Button fullWidth type="submit" disabled={isSubmitting || cart.length === 0}>Bayar Sekarang</Button>
                     </CardFooter>
                   </form>
