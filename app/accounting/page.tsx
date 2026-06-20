@@ -62,7 +62,7 @@ export default function AccountingPage() {
 
   // States Form Input Biaya
   const [selectedCoa, setSelectedCoa] = useState('');
-  const [paymentSource, setPaymentSource] = useState('101.01'); // Default Kas Utama
+  const [paymentSource, setPaymentSource] = useState('101.01'); 
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDesc, setExpenseDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState('2026-06-20');
@@ -90,7 +90,7 @@ export default function AccountingPage() {
     const codeInput = prompt("Masukkan Kode COA Biaya Baru (Kepala 5, contoh: 506):");
     if (!codeInput) return;
     if (!codeInput.startsWith('5') || codeInput.length !== 3) {
-      alert("Aturan Syariah/Akuntansi: Kode akun biaya wajib diawali kepala 5 dan berjumlah 3 digit angka!");
+      alert("Aturan Akuntansi: Kode akun biaya wajib diawali kepala 5 dan berjumlah 3 digit angka!");
       return;
     }
 
@@ -107,7 +107,7 @@ export default function AccountingPage() {
     const updatedCOA = [...coaExpenses, newCOA];
     setCoaExpenses(updatedCOA);
     localStorage.setItem('siddeeq_coa_expenses', JSON.stringify(updatedCOA));
-    setSelectedCoa(codeInput); // Otomatis pilih COA yang baru dibuat
+    setSelectedCoa(codeInput); 
     alert(`Sukses mendaftarkan COA Akun: ${codeInput} - ${nameInput}`);
   };
 
@@ -130,14 +130,11 @@ export default function AccountingPage() {
     const targetCoaObj = coaExpenses.find(c => c.code === selectedCoa);
     const coaName = targetCoaObj ? targetCoaObj.name : "Biaya Operasional";
     
-    // Generate referensi transaksi unik
     const uniqueRef = `EXP-${Math.floor(1000 + Math.random() * 9000)}`;
     const timestampId = Date.now();
 
-    // Akun Penjamin Kredit (Kas atau Bank)
     const sourceAccountName = paymentSource === '101.01' ? '101.01 - Kas Utama (Tunai)' : '101.02 - Bank Syariah (Transfer)';
 
-    // Pembuatan Double-Entry Journaling otomatis (Debet Biaya, Kredit Kas/Bank)
     const debetEntry: JournalEntry = {
       id: `J-EXP-${timestampId}-D`,
       date: expenseDate,
@@ -164,7 +161,6 @@ export default function AccountingPage() {
     setJournals(updatedJournals);
     localStorage.setItem('siddeeq_journals', JSON.stringify(updatedJournals));
 
-    // Reset Form Input
     setExpenseAmount('');
     setExpenseDescription('');
     alert(`Alhamdulillah, pengeluaran ${uniqueRef} senilai Rp ${amountNum.toLocaleString('id-ID')} berhasil dicatat & dibukukan otomatis!`);
@@ -188,21 +184,20 @@ export default function AccountingPage() {
   const groupedList = Object.values(groupedJournals);
 
   // ==========================================
-  // KALKULASI LAPORAN LABA RUGI SYARIAH DYNAMIC
+  // KALKULASI LAPORAN LABA RUGI SYARIAH (FIXED LIVE FILTER)
   // ==========================================
   const totalPendapatan = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.includes('401'))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && (j.account.startsWith('401') || j.account.includes('401')))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const totalHPP = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.includes('501'))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && (j.account.startsWith('501') || j.account.includes('501')))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaKotor = totalPendapatan - totalHPP;
 
-  // Menghitung Biaya Operasional secara dinamis dari akumulasi jurnal kepala 5 (kecuali HPP 501)
   const totalBiayaOperasional = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && j.account.startsWith('5') && !j.account.includes('501'))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && (j.account.startsWith('5') || j.account.includes('502') || j.account.includes('503') || j.account.includes('504') || j.account.includes('505')) && !j.account.includes('501'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaBersihSebelumZakat = labaKotor - totalBiayaOperasional;
@@ -210,8 +205,20 @@ export default function AccountingPage() {
   const labaBersihSetelahZakat = labaBersihSebelumZakat - alokasiZakat;
 
   // ==========================================
-  // KALKULASI MUTASI SALDO NERACA LAJUR
+  // KALKULASI MUTASI SALDO NERACA LAJUR (FIXED LIVE FILTER)
   // ==========================================
+  const getAccountBalance = (accountCode: string, initialBalance = 0) => {
+    return journals
+      .filter(j => {
+        // Cek status valid dan pastikan string mencakup kode akun depan secara fleksibel
+        return (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && (j.account.startsWith(accountCode) || j.account.includes(accountCode));
+      })
+      .reduce((balance, j) => {
+        if (j.position === 'DEBET') return balance + j.amount;
+        return balance - j.amount;
+      }, initialBalance);
+  };
+
   const saldoKas = getAccountBalance('101.01', 500000); 
   const saldoBank = getAccountBalance('101.02', 2000000); 
   const saldoPersediaan = getAccountBalance('102', 15000000); 
@@ -321,10 +328,10 @@ export default function AccountingPage() {
             </CardBody>
           </Card>
 
-          {/* GRID TIGA BLOK: LABA RUGI, NERACA, DAN FITUR FORM INPUT BIAYA OPERASIONAL */}
+          {/* GRID DUA LAPORAN UTAMA */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
             
-            {/* LABA RUGI SYARIAH */}
+            {/* LABA RUGI */}
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Simulasi Laporan Laba Rugi Syariah</h3>
@@ -372,6 +379,7 @@ export default function AccountingPage() {
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Keseimbangan Posisi Keuangan Gudang & Kas</p>
               </div>
               <CardBody style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                
                 <div>
                   <span style={{ fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.75rem' }}>Aset / Aktiva</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
@@ -433,7 +441,7 @@ export default function AccountingPage() {
             </Card>
           </div>
 
-          {/* RACIKAN TERBARU: FITUR FORM INPUT PENGELUARAN BIAYA & MANAJEMEN COA KANAN */}
+          {/* TRANSAKSI BIAYA & MANAJEMEN COA KANAN */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--spacing-6)' }}>
             <Card style={{ borderLeft: '4px solid #D97706' }}>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -441,7 +449,6 @@ export default function AccountingPage() {
                   <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Pencatatan Pengeluaran Operasional & Biaya</h3>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Input biaya langsung terhubung dengan akun COA kepala 5</p>
                 </div>
-                {/* TOMBOL PENGAYAAN REGISTRASI AKUN COA BARU */}
                 <button
                   type="button"
                   onClick={handleAddNewCOA}
@@ -474,7 +481,7 @@ export default function AccountingPage() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Sumber Pemotongan Dana Dana</label>
+                      <label style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Sumber Pemotongan Dana</label>
                       <select
                         value={paymentSource}
                         onChange={(e) => setPaymentSource(e.target.value)}
