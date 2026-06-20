@@ -166,13 +166,11 @@ export default function AccountingPage() {
     alert(`Alhamdulillah, pengeluaran ${uniqueRef} senilai Rp ${amountNum.toLocaleString('id-ID')} berhasil dicatat & dibukukan otomatis!`);
   };
 
-  // ==========================================
-  // LOGIKA GROUPING ACCORDION TABEL JURNAL
-  // ==========================================
+  // Logika Grouping Accordion Jurnal
   const groupedJournals = journals.reduce((groups: Record<string, { ref: string; date: string; description: string; totalAmount: number; status: string; entries: JournalEntry[] }>, item) => {
     const groupKey = item.ref || item.id;
     if (!groups[groupKey]) {
-      groups[groupKey] = { ref: groupKey, date: item.date, description: item.description, totalAmount: 0, status: item.status, entries: [] };
+      groups[groupKey] = { ref: groupKey, date: item.date, description: groupKey.startsWith('EXP') ? item.description : 'Penerimaan penjualan via ' + (item.account.includes('101.02') ? 'TRANSFER' : item.account.includes('103') ? 'MURABAHAH' : 'TUNAI') + ' - ' + groupKey, totalAmount: 0, status: item.status, entries: [] };
     }
     groups[groupKey].entries.push(item);
     if (item.position === 'DEBET') {
@@ -184,7 +182,7 @@ export default function AccountingPage() {
   const groupedList = Object.values(groupedJournals);
 
   // ==========================================
-  // KALKULASI LAPORAN LABA RUGI SYARIAH (FIXED LIVE FILTER)
+  // KALKULASI LAPORAN LABA RUGI SYARIAH (FIXED)
   // ==========================================
   const totalPendapatan = journals
     .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && (j.account.startsWith('401') || j.account.includes('401')))
@@ -197,7 +195,7 @@ export default function AccountingPage() {
   const labaKotor = totalPendapatan - totalHPP;
 
   const totalBiayaOperasional = journals
-    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && (j.account.startsWith('5') || j.account.includes('502') || j.account.includes('503') || j.account.includes('504') || j.account.includes('505')) && !j.account.includes('501'))
+    .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.position === 'DEBET' && j.account.startsWith('5') && !j.account.startsWith('501') && !j.account.includes('501'))
     .reduce((sum, j) => sum + j.amount, 0);
 
   const labaBersihSebelumZakat = labaKotor - totalBiayaOperasional;
@@ -205,12 +203,11 @@ export default function AccountingPage() {
   const labaBersihSetelahZakat = labaBersihSebelumZakat - alokasiZakat;
 
   // ==========================================
-  // KALKULASI MUTASI SALDO NERACA LAJUR (FIXED LIVE FILTER)
+  // KALKULASI MUTASI SALDO NERACA LAJUR (FIXED)
   // ==========================================
   const getAccountBalance = (accountCode: string, initialBalance = 0) => {
     return journals
       .filter(j => {
-        // Cek status valid dan pastikan string mencakup kode akun depan secara fleksibel
         return (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && (j.account.startsWith(accountCode) || j.account.includes(accountCode));
       })
       .reduce((balance, j) => {
@@ -237,7 +234,7 @@ export default function AccountingPage() {
         
         <div style={{ padding: 'var(--spacing-6)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
           
-          {/* TABEL BUKU JURNAL UMUM RINGKAS */}
+          {/* TABEL BUKU JURNAL UMUM TERPADU */}
           <Card>
             <div style={{ padding: 'var(--spacing-4) var(--spacing-4) 0 var(--spacing-4)' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Buku Jurnal Umum Terpadu</h3>
@@ -328,10 +325,9 @@ export default function AccountingPage() {
             </CardBody>
           </Card>
 
-          {/* GRID DUA LAPORAN UTAMA */}
+          {/* DUA BLOK LAPORAN UTAMA */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
-            
-            {/* LABA RUGI */}
+            {/* LABA RUGI SYARIAH */}
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Simulasi Laporan Laba Rugi Syariah</h3>
@@ -372,14 +368,13 @@ export default function AccountingPage() {
               </CardBody>
             </Card>
 
-            {/* NERACA KEUANGAN (SEIMBANG / BALANCED 100%) */}
+            {/* NERACA KEUANGAN */}
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Laporan Neraca Keuangan Syariah</h3>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Keseimbangan Posisi Keuangan Gudang & Kas</p>
               </div>
               <CardBody style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                
                 <div>
                   <span style={{ fontWeight: 700, color: 'var(--color-primary)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.75rem' }}>Aset / Aktiva</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
@@ -441,7 +436,7 @@ export default function AccountingPage() {
             </Card>
           </div>
 
-          {/* TRANSAKSI BIAYA & MANAJEMEN COA KANAN */}
+          {/* INPUT TRANSAKSI BIAYA */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--spacing-6)' }}>
             <Card style={{ borderLeft: '4px solid #D97706' }}>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -463,7 +458,6 @@ export default function AccountingPage() {
 
               <form onSubmit={handleExpenseSubmit}>
                 <CardBody style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '0.875rem' }}>
-                  
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Pilih Kategori COA Biaya (Beban)</label>
@@ -485,7 +479,7 @@ export default function AccountingPage() {
                       <select
                         value={paymentSource}
                         onChange={(e) => setPaymentSource(e.target.value)}
-                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#FFFFFF', outline: 'none' }}
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#FFFFFF', outline: '#D97706' }}
                       >
                         <option value="101.01">101.01 - Kas Utama (Tunai Bengkel)</option>
                         <option value="101.02">101.02 - Bank Syariah (Transfer Rekening)</option>
@@ -505,7 +499,7 @@ export default function AccountingPage() {
                     <Input 
                       label="Nominal Pengeluaran (Rp)" 
                       type="number" 
-                      placeholder="Contoh: 350000" 
+                      placeholder="Contioh: 350000" 
                       value={expenseAmount} 
                       onChange={(e) => setExpenseAmount(e.target.value)} 
                       required 
@@ -523,7 +517,6 @@ export default function AccountingPage() {
                       />
                     </div>
                   </div>
-
                 </CardBody>
                 <CardFooter style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 16px 16px' }}>
                   <Button type="submit" style={{ backgroundColor: '#D97706', color: '#FFFFFF' }}>
