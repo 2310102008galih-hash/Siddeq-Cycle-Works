@@ -27,6 +27,9 @@ const INITIAL_PRODUCTS: Product[] = [
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
 
+  // State pencarian gudang baru
+  const [searchTerm, setSearchTerm] = useState('');
+
   const [sku, setSku] = useState('');
   const [name, setName] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
@@ -96,6 +99,60 @@ export default function InventoryPage() {
     fetchProducts();
   }, []);
 
+  // Handler Fungsi Tambah Stok untuk Suku Cadang yang Sudah Ada Riwayatnya
+  const handleUpdateExistingStock = async (productId: number, currentStock: number, productName: string) => {
+    const inputQty = prompt(`Masukkan jumlah unit baru yang ingin ditambahkan untuk:\n"${productName}"`);
+    
+    if (inputQty === null) return; // Jika klik batal
+    const qtyToAdd = parseInt(inputQty);
+    
+    if (isNaN(qtyToAdd) || qtyToAdd <= 0) {
+      alert("Harap masukkan angka jumlah penambahan unit yang valid dan di atas 0!");
+      return;
+    }
+
+    const calculatedNewStock = currentStock + qtyToAdd;
+
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        // Update langsung kolom stock_qty di tabel products Supabase
+        const { error } = await supabase
+          .from('products')
+          .update({ stock_qty: calculatedNewStock })
+          .eq('id', productId);
+
+        if (error) throw new Error(error.message);
+      }
+
+      // Perbarui local state agar layar langsung berubah tanpa reload halaman
+      const updatedProducts = products.map((prod) => {
+        if (prod.id === productId) {
+          return { ...prod, stockQty: calculatedNewStock };
+        }
+        return prod;
+      });
+
+      setProducts(updatedProducts);
+      localStorage.setItem('siddeeq_products', JSON.stringify(updatedProducts));
+      alert(`Alhamdulillah, Berhasil menambahkan +${qtyToAdd} unit ke stok gudang!`);
+
+    } catch (err: any) {
+      console.warn("Gagal memperbarui database cloud, beralih ke local cache:", err.message);
+      
+      // Jalankan skenario local cache jika internet/database terganggu
+      const updatedProducts = products.map((prod) => {
+        if (prod.id === productId) {
+          return { ...prod, stockQty: calculatedNewStock };
+        }
+        return prod;
+      });
+      setProducts(updatedProducts);
+      localStorage.setItem('siddeeq_products', JSON.stringify(updatedProducts));
+      alert(`[Mode Offline] Stok "${productName}" diperbarui di cache lokal menjadi ${calculatedNewStock} unit.`);
+    }
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sku || !name || !buyPrice || !sellPrice || !stockQty) return;
@@ -105,7 +162,6 @@ export default function InventoryPage() {
     try {
       const supabase = getSupabaseClient();
       if (supabase) {
-        // Insert product directly into Supabase
         const { data: newProd, error } = await supabase
           .from('products')
           .insert([{
@@ -207,6 +263,13 @@ export default function InventoryPage() {
     }
   };
 
+  // Logika Penyaringan Hasil Pencarian Suku Cadang Gudang
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
       <Sidebar />
@@ -219,10 +282,33 @@ export default function InventoryPage() {
             {/* Left Column: Product Table */}
             <div>
               <Card>
-                <CardHeader 
-                  title="Daftar Suku Cadang Bengkel" 
-                  description="Informasi stok aktif, harga beli (HPP), dan harga jual" 
-                />
+                <div style={{ padding: 'var(--spacing-4) var(--spacing-4) 0 var(--spacing-4)' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Daftar Suku Cadang Bengkel</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-3)' }}>
+                    Informasi stok aktif, harga beli (HPP), dan harga jual
+                  </p>
+
+                  {/* KOTAK INPUT BOX PENCARIAN GUDANG */}
+                  <div style={{ maxWidth: '380px', marginBottom: 'var(--spacing-2)' }}>
+                    <input 
+                      type="text"
+                      placeholder="🔍 Cari berdasarkan nama atau kode SKU suku cadang..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.85rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: '#FFFFFF',
+                        outline: 'none',
+                        transition: 'border-color var(--transition-fast)'
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <CardBody style={{ padding: 0 }}>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
@@ -233,37 +319,66 @@ export default function InventoryPage() {
                           <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 600, textAlign: 'right' }}>Harga Beli (HPP)</th>
                           <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 600, textAlign: 'right' }}>Harga Jual</th>
                           <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 600, textAlign: 'center' }}>Stok</th>
+                          <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 600, textAlign: 'center' }}>Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {products.map((product) => (
-                          <tr key={product.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                              {product.sku}
-                            </td>
-                            <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 500 }}>
-                              {product.name}
-                            </td>
-                            <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'right' }}>
-                              Rp {product.buyPrice.toLocaleString('id-ID')}
-                            </td>
-                            <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'right', fontWeight: 600, color: 'var(--color-primary)' }}>
-                              Rp {product.sellPrice.toLocaleString('id-ID')}
-                            </td>
-                            <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'center' }}>
-                              <span style={{
-                                padding: 'var(--spacing-1) var(--spacing-2)',
-                                borderRadius: 'var(--radius-sm)',
-                                backgroundColor: product.stockQty <= 5 ? 'var(--color-void-bg)' : 'var(--color-committed-bg)',
-                                color: product.stockQty <= 5 ? 'var(--color-void-text)' : 'var(--color-committed-text)',
-                                fontWeight: 600,
-                                fontSize: '0.75rem'
-                              }}>
-                                {product.stockQty} Unit
-                              </span>
+                        {filteredProducts.length > 0 ? (
+                          filteredProducts.map((product) => (
+                            <tr key={product.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                {product.sku}
+                              </td>
+                              <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 500 }}>
+                                {product.name}
+                              </td>
+                              <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'right' }}>
+                                Rp {product.buyPrice.toLocaleString('id-ID')}
+                              </td>
+                              <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'right', fontWeight: 600, color: 'var(--color-primary)' }}>
+                                Rp {product.sellPrice.toLocaleString('id-ID')}
+                              </td>
+                              <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'center' }}>
+                                <span style={{
+                                  padding: 'var(--spacing-1) var(--spacing-2)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  backgroundColor: product.stockQty <= 5 ? 'var(--color-void-bg)' : 'var(--color-committed-bg)',
+                                  color: product.stockQty <= 5 ? 'var(--color-void-text)' : 'var(--color-committed-text)',
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem'
+                                }}>
+                                  {product.stockQty} Unit
+                                </span>
+                              </td>
+                              {/* TOMBOL AKSI CEPAT RE-STOCK BARANG LAMA */}
+                              <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateExistingStock(product.id, product.stockQty, product.name)}
+                                  style={{
+                                    padding: '4px 8px',
+                                    fontSize: '0.75rem',
+                                    backgroundColor: 'var(--color-primary)',
+                                    color: '#FFFFFF',
+                                    border: 'none',
+                                    borderRadius: 'var(--radius-sm)',
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    boxShadow: 'var(--shadow-sm)'
+                                  }}
+                                >
+                                  + Stok
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} style={{ padding: 'var(--spacing-6)', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                              Suku cadang dengan kata kunci "{searchTerm}" tidak ditemukan di gudang.
                             </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>

@@ -178,10 +178,6 @@ export default function Home() {
   // State for quick-restocking inputs in Dashboard
   const [restockInputs, setRestockInputs] = useState<Record<number, string>>({});
 
-  // Active hover states for our new custom CSS tooltips
-  const [showMarginTooltip, setShowMarginTooltip] = useState(false);
-  const [showAkadTooltip, setShowAkadTooltip] = useState(false);
-
   // Sync data on mount from backend API with local cache fallback
   useEffect(() => {
     async function syncData() {
@@ -422,6 +418,7 @@ export default function Home() {
 
   // Execute emergency client-side backup checkout if database is down
   const executeBackupCheckout = () => {
+    // Calculate profit margin: (Sell - Buy) * Qty
     const profitMargin = cart.reduce(
       (acc, item) => acc + (item.product.sellPrice - item.product.buyPrice) * item.qty,
       0
@@ -1050,34 +1047,9 @@ export default function Home() {
                   </CardBody>
                 </Card>
 
-                {/* KARTU MARGIN KEUNTUNGAN DENGAN GLOSARIUM GLANCE TOOLTIP */}
-                <Card style={{ borderLeft: '4px solid var(--color-secondary)', position: 'relative' }}>
+                <Card style={{ borderLeft: '4px solid var(--color-secondary)' }}>
                   <CardBody style={{ padding: 'var(--spacing-4)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Margin Keuntungan</div>
-                      <div 
-                        onMouseEnter={() => setShowMarginTooltip(true)}
-                        onMouseLeave={() => setShowMarginTooltip(false)}
-                        style={{
-                          backgroundColor: '#F1F5F9', color: '#64748B', borderRadius: '50%', width: '15px', height: '15px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'help'
-                        }}
-                      >
-                        ?
-                      </div>
-                    </div>
-
-                    {/* CSS Tooltip Box */}
-                    {showMarginTooltip && (
-                      <div style={{
-                        position: 'absolute', bottom: '105%', left: '10px', width: '250px', backgroundColor: '#1E293B',
-                        color: '#FFFFFF', padding: '10px', borderRadius: '6px', fontSize: '0.75rem', zIndex: 100, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)', lineHeight: '1.4'
-                      }}>
-                        <strong style={{ color: '#34D399', display: 'block', marginBottom: '2px' }}>Margin Profit Syariah:</strong>
-                        Keuntungan transparan murni dari selisih harga jual jual-beli yang disepakati bersama HPP modal, tanpa tambahan bunga/riba.
-                      </div>
-                    )}
-
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Margin Keuntungan</div>
                     <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: 'var(--spacing-1)' }}>
                       Rp {totalMargin.toLocaleString('id-ID')}
                     </div>
@@ -1223,47 +1195,16 @@ export default function Home() {
                   </CardBody>
                 </Card>
 
-                {/* GANTI GRAFIK SEBARAN AKAD: DENGAN INTERACTIVE GLOSSARY TOOLTIP & DYNAMIC CHART PRESET FALLBACK */}
-                <Card style={{ position: 'relative' }}>
-                  <CardHeader 
-                    title={
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>Sebaran Akad Jual Beli</span>
-                        <div 
-                          onMouseEnter={() => setShowAkadTooltip(true)}
-                          onMouseLeave={() => setShowAkadTooltip(false)}
-                          style={{
-                            backgroundColor: '#F1F5F9', color: '#64748B', borderRadius: '50%', width: '15px', height: '15px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'help'
-                          }}
-                        >
-                          ?
-                        </div>
-                      </div>
-                    } 
-                    description="Persentase transaksi Tunai vs Murabahah" 
-                  />
-
-                  {/* Akad Glossary Tooltip */}
-                  {showAkadTooltip && (
-                    <div style={{
-                      position: 'absolute', top: '55px', left: '15px', width: '270px', backgroundColor: '#1E293B',
-                      color: '#FFFFFF', padding: '10px', borderRadius: '6px', fontSize: '0.725rem', zIndex: 100, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)', lineHeight: '1.4'
-                    }}>
-                      <strong style={{ color: '#F59E0B', display: 'block', marginBottom: '3px' }}>Sistem Transaksi Syariah:</strong>
-                      • <strong>Tunai (Al-Bai'):</strong> Transaksi lunas serah-terima langsung.<br/>
-                      • <strong>Murabahah:</strong> Akad jual beli dengan keterbukaan harga modal & margin cicil yang disepakati.
-                    </div>
-                  )}
-
+                {/* SVG Donut Chart - Distribusi Akad */}
+                <Card>
+                  <CardHeader title="Sebaran Akad Jual Beli" description="Persentase transaksi Tunai vs Murabahah" />
                   <CardBody style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-6)' }}>
                     <div style={{ position: 'relative', width: '140px', height: '140px' }}>
                       <svg viewBox="0 0 100 100" width="100%" height="100%">
-                        {/* Fallback Outer ring if transactions are newly initialised */}
-                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke={totalTransactionsCount === 0 ? "rgba(16, 185, 129, 0.15)" : "#E2E8F0"} strokeWidth="12" />
+                        <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#E2E8F0" strokeWidth="12" />
                         
                         {/* Tunai segment */}
-                        {tunaiCount > 0 ? (
+                        {tunaiCount > 0 && (
                           <circle 
                             cx="50" 
                             cy="50" 
@@ -1275,10 +1216,6 @@ export default function Home() {
                             strokeDashoffset={tunaiStroke}
                             transform="rotate(-90 50 50)"
                           />
-                        ) : (
-                          totalTransactionsCount === 0 && (
-                            <circle cx="50" cy="50" r={radius} fill="transparent" stroke="var(--color-primary)" strokeWidth="12" strokeDasharray={`${circ} ${circ}`} transform="rotate(-90 50 50)" strokeOpacity="0.1"/>
-                          )
                         )}
 
                         {/* Murabahah segment */}
@@ -1313,9 +1250,7 @@ export default function Home() {
                       <div style={{ textAlign: 'center' }}>
                         <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', marginRight: '4px' }}></span>
                         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tunai</span>
-                        <strong style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-primary)', marginTop: '2px' }}>
-                          {totalTransactionsCount === 0 ? "100" : tunaiPercent}% ({tunaiCount})
-                        </strong>
+                        <strong style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-primary)', marginTop: '2px' }}>{tunaiPercent}% ({tunaiCount})</strong>
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-secondary)', marginRight: '4px' }}></span>
@@ -1438,7 +1373,7 @@ export default function Home() {
                   </CardBody>
                 </Card>
 
-                {/* MODIFIKASI LIST STOK: DENGAN EMOTICON STATUS WARNA KRITIS DAN TOMBOL WA SUPPLIER */}
+                {/* Critical Stock & Quick Restock Card */}
                 <Card>
                   <CardHeader title="Stok Hampir Habis" description="Daftar suku cadang kritis di bawah 5 unit. Restok langsung di sini." />
                   <CardBody style={{ padding: 0 }}>
@@ -1454,20 +1389,16 @@ export default function Home() {
                           }}>
                             <div>
                               <span style={{ fontWeight: 600, fontSize: '0.825rem', display: 'block' }}>{prod.name}</span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                SKU: {prod.sku} | Sisa: <strong style={{ color: prod.stockQty <= 2 ? '#EF4444' : '#F59E0B' }}>
-                                  {prod.stockQty <= 2 ? '🚨' : '⚠'} {prod.stockQty} Unit
-                                </strong>
-                              </span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>SKU: {prod.sku} | Sisa: <strong style={{ color: 'var(--color-danger)' }}>{prod.stockQty} Unit</strong></span>
                             </div>
-                            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-2)', alignItems: 'center' }}>
                               <input 
                                 type="number" 
                                 placeholder="Qty"
                                 value={restockInputs[prod.id] || ''}
                                 onChange={(e) => setRestockInputs({ ...restockInputs, [prod.id]: e.target.value })}
                                 style={{
-                                  width: '40px',
+                                  width: '45px',
                                   padding: '4px 6px',
                                   fontSize: '0.75rem',
                                   borderRadius: 'var(--radius-sm)',
@@ -1477,22 +1408,11 @@ export default function Home() {
                               />
                               <Button 
                                 size="sm" 
-                                style={{ padding: '4px 8px', fontSize: '0.65rem' }}
+                                style={{ padding: '4px 10px', fontSize: '0.7rem' }}
                                 onClick={() => handleQuickRestock(prod.id)}
                               >
                                 Restok
                               </Button>
-                              <a 
-                                href={`https://wa.me/628123456789?text=Halo%20Supplier,%20saya%20ingin%20restok%20barang%20${encodeURIComponent(prod.name)}%20(SKU:%20${prod.sku})`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  padding: '4px 8px', fontSize: '0.65rem', backgroundColor: '#25D366', color: '#FFF',
-                                  borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontWeight: 'bold', display: 'inline-block'
-                                }}
-                              >
-                                Supplier
-                              </a>
                             </div>
                           </div>
                         ))
@@ -1622,7 +1542,7 @@ export default function Home() {
                     
                     <CardBody style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)', minHeight: '300px' }}>
                       
-                      {/* CART ITEMS: TAMBAHKAN ICON DAN VISUALISASI KERANJANG KOSONG YANG INTERAKTIF */}
+                      {/* Cart Items List */}
                       {cart.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' }}>
                           {cart.map((item, index) => (
@@ -1703,13 +1623,8 @@ export default function Home() {
                           ))}
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.825rem', textAlign: 'center', padding: '40px 0' }}>
-                          <svg width="45" height="45" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="1.5" style={{ marginBottom: '10px' }}>
-                            <circle cx="9" cy="21" r="1"/>
-                            <circle cx="20" cy="21" r="1"/>
-                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                          </svg>
-                          <span>Keranjang kasir masih kosong.<br />Pilih suku cadang pada pencarian di kiri.</span>
+                        <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.875rem', textAlign: 'center', padding: 'var(--spacing-8) 0' }}>
+                          Keranjang masih kosong.<br />Pilih suku cadang pada pencarian di kiri.
                         </div>
                       )}
 
@@ -1724,7 +1639,7 @@ export default function Home() {
                         required={akadType === 'MURABAHAH'}
                       />
 
-                      {/* MEMBUMI KAN PILIHAN AKAD: DIUBAH AGAR MUDAH DITERIMA MASYARAKAT */}
+                      {/* Sharia Akad / Metode Pembayaran Selector */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-1)' }}>
                         <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>
                           Metode Pembayaran / Akad Syariah
@@ -1742,10 +1657,10 @@ export default function Home() {
                             cursor: 'pointer'
                           }}
                         >
-                          <option value="TUNAI">Tunai / Cash (Akad Al-Bai')</option>
-                          <option value="TRANSFER">Transfer Bank Syariah (Akad Al-Bai')</option>
-                          <option value="QRIS">QRIS Digital E-Wallet (Akad Al-Bai')</option>
-                          <option value="MURABAHAH">Cicilan Tempoh / Kredit (Akad Murabahah Margin)</option>
+                          <option value="TUNAI">Tunai (Cash / Al-Bai' Bithaman Ajil)</option>
+                          <option value="TRANSFER">Transfer Bank (Bank Syariah)</option>
+                          <option value="QRIS">QRIS (E-Wallet Clearing)</option>
+                          <option value="MURABAHAH">Murabahah (Cicil/Kredit dengan Margin)</option>
                         </select>
                       </div>
 
@@ -1830,7 +1745,6 @@ export default function Home() {
                             setCart([]);
                             setCustomerPhone('');
                             setAkadType('TUNAI');
-                            setTransferReference('');
                           }}
                         >
                           Batal
@@ -1908,6 +1822,7 @@ export default function Home() {
               }}>
                 <svg width="180" height="180" viewBox="0 0 100 100" style={{ shapeRendering: 'crispEdges' }}>
                   <rect width="100" height="100" fill="#FFFFFF"/>
+                  {/* Position Finders */}
                   <rect x="5" y="5" width="22" height="22" fill="var(--color-primary)"/>
                   <rect x="8" y="8" width="16" height="16" fill="#FFFFFF"/>
                   <rect x="11" y="11" width="10" height="10" fill="var(--color-primary)"/>
@@ -1920,6 +1835,7 @@ export default function Home() {
                   <rect x="8" y="76" width="16" height="16" fill="#FFFFFF"/>
                   <rect x="11" y="79" width="10" height="10" fill="var(--color-primary)"/>
 
+                  {/* Random pixels */}
                   <rect x="30" y="10" width="8" height="20" fill="var(--color-primary)"/>
                   <rect x="45" y="5" width="15" height="4" fill="var(--color-primary)"/>
                   <rect x="55" y="15" width="10" height="10" fill="var(--color-primary)"/>
@@ -1952,7 +1868,7 @@ export default function Home() {
               </div>
 
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-5)', lineHeight: '1.4' }}>
-                <strong>⚠️ Peringatan:</strong> Pastikan kasir telah melakukan examination dana masuk pada sistem e-wallet clearing sebelum menekan tombol verifikasi.
+                <strong>⚠️ Peringatan:</strong> Pastikan kasir telah melakukan pemeriksaan dana masuk pada sistem e-wallet clearing sebelum menekan tombol verifikasi.
               </p>
 
               <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
@@ -2003,6 +1919,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* Local spinner animation keyframes */}
         <style jsx global>{`
           @keyframes spin {
             to { transform: rotate(360deg); }
