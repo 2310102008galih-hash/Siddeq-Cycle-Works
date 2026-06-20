@@ -26,7 +26,7 @@ interface CartItem {
 interface Transaction {
   id: string;
   invoiceNumber: string;
-  date: string; // ISO string
+  date: string; 
   totalAmount: number;
   profitAmount: number;
   akadType: string;
@@ -72,8 +72,8 @@ export default function Home() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerPhone, setCustomerPhone] = useState('');
   
-  // SINKRONISASI COA: Default Kas Utama Baku
-  const [akadType, setAkadType] = useState<string>('101.01 - Kas Utama (Tunai)');
+  // PENAMAAN RESMI COA AWAL
+  const [akadType, setAkadType] = useState<string>('101.01 - Kas Utama (Tunai Bengkel)');
   
   const [transferReference, setTransferReference] = useState('');
   const [showQrisModal, setShowQrisModal] = useState(false);
@@ -182,7 +182,6 @@ export default function Home() {
   const handleRemoveItem = (index: number) => { setCart(cart.filter((_, i) => i !== index)); };
   const totalAmount = cart.reduce((acc, item) => acc + item.product.sellPrice * item.qty, 0);
 
-  // Solusi Checkout Otomatis Berbasis COA Sinkron 100%
   const executeBackupCheckout = () => {
     const profitMargin = cart.reduce((acc, item) => acc + (item.product.sellPrice - item.product.buyPrice) * item.qty, 0);
     const savedProducts = localStorage.getItem('siddeeq_products');
@@ -222,14 +221,13 @@ export default function Home() {
     setTransactions(updatedTx);
     localStorage.setItem('siddeeq_transactions', JSON.stringify(updatedTx));
 
-    // Pembuatan Jurnal COA Baku Otomatis
     const savedJournals = localStorage.getItem('siddeeq_journals');
     const currentJournals: JournalEntry[] = savedJournals ? JSON.parse(savedJournals) : [];
 
     const newJournalDebet: JournalEntry = { id: `J-${Date.now()}-1`, date: dateNow.toISOString().split('T')[0], ref: invoiceNum, account: akadType, position: 'DEBET', amount: totalAmount, description: `Penjualan POS - ${invoiceNum}`, status: 'COMMITTED' };
     const newJournalKredit: JournalEntry = { id: `J-${Date.now()}-2`, date: dateNow.toISOString().split('T')[0], ref: invoiceNum, account: '401 - Pendapatan Penjualan', position: 'KREDIT', amount: totalAmount, description: `Penjualan POS - ${invoiceNum}`, status: 'COMMITTED' };
     const newJournalHppDebet: JournalEntry = { id: `J-${Date.now()}-3`, date: dateNow.toISOString().split('T')[0], ref: invoiceNum, account: '501 - Harga Pokok Penjualan (HPP)', position: 'DEBET', amount: totalAmount - profitMargin, description: `HPP POS - ${invoiceNum}`, status: 'COMMITTED' };
-    const newJournalPersediaanKredit: JournalEntry = { id: `J-${Date.now()}-4`, date: dateNow.toISOString().split('T')[0], ref: invoiceNum, account: '102 - Persediaan Suku Cadang', position: 'KREDIT', amount: totalAmount - profitMargin, description: `HPP POS - ${invoiceNum}`, status: 'COMMITTED' };
+    const newJournalPersediaanKredit: JournalEntry = { id: `J-${Date.now()}-4`, date: dateNow.toISOString().split('T')[0], ref: invoiceNum, account: '102 - Persediaan Suku Cadang Gudang', position: 'KREDIT', amount: totalAmount - profitMargin, description: `HPP POS - ${invoiceNum}`, status: 'COMMITTED' };
 
     localStorage.setItem('siddeeq_journals', JSON.stringify([...currentJournals, newJournalDebet, newJournalKredit, newJournalHppDebet, newJournalPersediaanKredit]));
 
@@ -248,7 +246,7 @@ export default function Home() {
     e.preventDefault();
     if (cart.length === 0) return;
     if (cart.some(item => item.error)) { alert("Perbaiki kesalahan stok!"); return; }
-    if (showQrisModal) { submitCheckout(); } else { submitCheckout(); }
+    submitCheckout();
   };
 
   const getFilteredTransactions = () => {
@@ -285,6 +283,7 @@ export default function Home() {
   const tunaiPercent = Math.round((tunaiCount / totalCount) * 100);
   const murabahahPercent = Math.round((murabahahCount / totalCount) * 100);
   const tunaiStroke = (tunaiCount / totalCount) * 220; const murabahahStroke = (murabahahCount / totalCount) * 220;
+  const murabahahOffset = -tunaiStroke;
 
   const handleQuickRestock = (productId: number) => {
     const qtyStr = restockInputs[productId]; if (!qtyStr) return;
@@ -306,8 +305,8 @@ export default function Home() {
       const refNum = `RST-${Date.now()}`;
       const dateNowStr = new Date().toISOString().split('T')[0];
 
-      const debetEntry: JournalEntry = { id: `J-${Date.now()}-R1`, date: dateNowStr, ref: refNum, account: '102 - Persediaan Suku Cadang', position: 'DEBET', amount: restockCost, description: `Restok ${qtyToAdd}x ${targetProduct.name}`, status: 'COMMITTED' };
-      const kreditEntry: JournalEntry = { id: `J-${Date.now()}-R2`, date: dateNowStr, ref: refNum, account: '101.01 - Kas Utama (Tunai)', position: 'KREDIT', amount: restockCost, description: `Restok ${qtyToAdd}x ${targetProduct.name}`, status: 'COMMITTED' };
+      const debetEntry: JournalEntry = { id: `J-${Date.now()}-R1`, date: dateNowStr, ref: refNum, account: '102 - Persediaan Suku Cadang Gudang', position: 'DEBET', amount: restockCost, description: `Restok ${qtyToAdd}x ${targetProduct.name}`, status: 'COMMITTED' };
+      const kreditEntry: JournalEntry = { id: `J-${Date.now()}-R2`, date: dateNowStr, ref: refNum, account: '101.01 - Kas Utama (Tunai Bengkel)', position: 'KREDIT', amount: restockCost, description: `Restok ${qtyToAdd}x ${targetProduct.name}`, status: 'COMMITTED' };
 
       localStorage.setItem('siddeeq_journals', JSON.stringify([...currentJournals, debetEntry, kreditEntry]));
     }
@@ -469,13 +468,13 @@ export default function Home() {
                       ))}
                       <Input label="WhatsApp Pelanggan" placeholder="08123..." value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
                       
-                      {/* DROPDOWN UTAMA METODE PEMBAYARAN AKUN COA BAKU */}
+                      {/* DROPDOWN UTAMA METODE PEMBAYARAN AKUN COA BAKU SESUAI NERACA */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Metode Pembayaran / Akad Syariah</label>
                         <select value={akadType} onChange={(e) => setAkadType(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#FFFFFF', cursor: 'pointer' }}>
-                          <option value="101.01 - Kas Utama (Tunai)">Tunai (Cash / Al-Bai' Bithaman Ajil)</option>
-                          <option value="101.02 - Bank Syariah (Transfer)">Transfer Bank (Bank Syariah)</option>
-                          <option value="101.02 - Bank Syariah (Transfer)">QRIS (E-Wallet Clearing)</option>
+                          <option value="101.01 - Kas Utama (Tunai Bengkel)">Tunai (Cash / Al-Bai' Bithaman Ajil)</option>
+                          <option value="101.02 - Bank Syariah (Rekening Utama)">Transfer Bank (Bank Syariah)</option>
+                          <option value="101.02 - Bank Syariah (Rekening Utama)">QRIS (E-Wallet Clearing)</option>
                           <option value="103 - Piutang Murabahah">Murabahah (Cicil/Kredit dengan Margin)</option>
                         </select>
                       </div>

@@ -38,7 +38,7 @@ export default function AccountingPage() {
   const [expandedGroupRef, setExpandedGroupRef] = useState<string | null>(null);
 
   const [selectedCoa, setSelectedCoa] = useState('');
-  const [paymentSource, setPaymentSource] = useState('101.01 - Kas Utama (Tunai)'); 
+  const [paymentSource, setPaymentSource] = useState('101.01 - Kas Utama (Tunai Bengkel)'); 
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDesc, setExpenseDescription] = useState('');
   const [expenseDate, setExpenseDate] = useState('2026-06-20');
@@ -108,7 +108,6 @@ export default function AccountingPage() {
 
   const groupedList = Object.values(groupedJournals);
 
-  // Perhitungan Laba Rugi Berdasarkan COA Bersih POS Kasir
   const totalPendapatan = journals
     .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith('401'))
     .reduce((sum, j) => sum + j.amount, 0);
@@ -127,7 +126,6 @@ export default function AccountingPage() {
   const alokasiZakat = labaBersihSebelumZakat > 0 ? labaBersihSebelumZakat * 0.025 : 0;
   const labaBersihSetelahZakat = labaBersihSebelumZakat - alokasiZakat;
 
-  // Perhitungan Saldo Neraca Mutlak Berdasarkan COA Depan
   const getAccountBalance = (accountCode: string, initialBalance = 0) => {
     return journals
       .filter(j => (j.status === 'COMMITTED' || j.status === 'PENDING_APPROVAL') && j.account.startsWith(accountCode))
@@ -154,8 +152,6 @@ export default function AccountingPage() {
         <TopHeader title="Akuntansi Syariah & Jurnal Otomatis" />
         
         <div style={{ padding: 'var(--spacing-6)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-6)' }}>
-          
-          {/* TABEL BUKU JURNAL */}
           <Card>
             <div style={{ padding: 'var(--spacing-4) var(--spacing-4) 0 var(--spacing-4)' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-primary)' }}>Buku Jurnal Umum Terpadu</h3>
@@ -218,7 +214,6 @@ export default function AccountingPage() {
             </CardBody>
           </Card>
 
-          {/* SIMULASI LABA RUGI & NERACA LAJUR */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
             <Card>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
@@ -268,19 +263,19 @@ export default function AccountingPage() {
                   <span style={{ fontWeight: 700, color: 'var(--color-primary)', display: 'block', fontSize: '0.75rem' }}>ASET / AKTIVA</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>101.01 - Kas Utama (Tunai)</span>
+                      <span>101.01 - Kas Utama (Tunai Bengkel)</span>
                       <span>Rp {saldoKas.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>101.02 - Bank Syariah (Transfer)</span>
+                      <span>101.02 - Bank Syariah (Rekening Utama)</span>
                       <span>Rp {saldoBank.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>102 - Persediaan Suku Cadang</span>
+                      <span>102 - Persediaan Suku Cadang Gudang</span>
                       <span>Rp {saldoPersediaan.toLocaleString('id-ID')}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>103 - Piutang Murabahah</span>
+                      <span>103 - Piutang Pembayaran Murabahah</span>
                       <span>Rp {saldoPiutang.toLocaleString('id-ID')}</span>
                     </div>
                   </div>
@@ -321,7 +316,6 @@ export default function AccountingPage() {
             </Card>
           </div>
 
-          {/* INPUT BIAYA OPERASIONAL */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--spacing-6)' }}>
             <Card style={{ borderLeft: '4px solid #D97706' }}>
               <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -338,8 +332,8 @@ export default function AccountingPage() {
                       {coaExpenses.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
                     </select>
                     <select value={paymentSource} onChange={(e) => setPaymentSource(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <option value="101.01 - Kas Utama (Tunai)">101.01 - Kas Utama (Tunai)</option>
-                      <option value="101.02 - Bank Syariah (Transfer)">101.02 - Bank Syariah (Transfer)</option>
+                      <option value="101.01 - Kas Utama (Tunai Bengkel)">101.01 - Kas Utama (Tunai Bengkel)</option>
+                      <option value="101.02 - Bank Syariah (Rekening Utama)">101.02 - Bank Syariah (Rekening Utama)</option>
                     </select>
                     <Input label="Tanggal" type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required />
                   </div>
